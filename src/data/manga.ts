@@ -24,12 +24,11 @@ export const genres = [
 export const mangaList: Manga[] = [
   {
     id: "1",
-    title: "Phantom Blade",
-    cover: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&h=600&fit=crop",
+    title: "One Punch Man",
+    cover: "/onepunchman.webp?w=400&h=600&fit=crop",
     description: "In a world where ancient swords hold the power of forgotten gods, a young blacksmith discovers a blade that whispers secrets of a lost civilization.",
     genres: ["Action", "Fantasy", "Adventure"],
     rating: 4.8,
-    // ✅ ADD THIS
     chapters: [
       { number: 1, title: "New", pdfUrl: "/sample.pdf" },
       { number: 2, title: "Good Day", pdfUrl: "/Tanay_Mithari_Java_Developer_Resume.pdf" },

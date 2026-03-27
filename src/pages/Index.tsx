@@ -1,26 +1,56 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
+import axios from "axios";
 import { BookOpen, TrendingUp, Sparkles } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import GenreFilter from "@/components/GenreFilter";
 import MangaCard from "@/components/MangaCard";
 import FeaturedManga from "@/components/FeaturedManga";
-import { mangaList } from "@/data/manga";
 
 const Index = () => {
   const [search, setSearch] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
+  const [mangaList, setMangaList] = useState<any[]>([]); // fetched manga
+  const [loading, setLoading] = useState(true);
 
+  // Fetch manga from backend
+  useEffect(() => {
+    axios
+      .get("http://localhost:8080/api/manga")
+      .then((res) => {
+        setMangaList(res.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch manga:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Filtered manga based on search and genre
   const filtered = useMemo(() => {
     return mangaList.filter((m) => {
-      const matchesSearch = m.title.toLowerCase().includes(search.toLowerCase()) ||
-        m.author.toLowerCase().includes(search.toLowerCase());
-      const matchesGenre = selectedGenre === "All" || m.genres.includes(selectedGenre);
+      const matchesSearch =
+        m.title?.toLowerCase().includes(search.toLowerCase()) ||
+        m.author?.toLowerCase().includes(search.toLowerCase());
+
+      const matchesGenre =
+        selectedGenre === "All" ||
+        m.genres?.some((g: any) => g.name === selectedGenre);
+
       return matchesSearch && matchesGenre;
     });
-  }, [search, selectedGenre]);
+  }, [search, selectedGenre, mangaList]);
 
-  const featured = mangaList[3]; // Dragon's Crown
+  const featured = mangaList.length > 0 ? mangaList[0] : null;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading manga...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,7 +59,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-8 space-y-10">
         {/* Hero */}
         <section className="text-center space-y-4 py-6">
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight" style={{ fontFamily: 'var(--font-heading)' }}>
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight">
             Welcome to <span className="text-gradient-orange">MangaVerse</span>
           </h1>
           <p className="text-muted-foreground max-w-md mx-auto">
@@ -46,11 +76,11 @@ const Index = () => {
         </section>
 
         {/* Featured */}
-        {!search && selectedGenre === "All" && (
+        {!search && selectedGenre === "All" && featured && (
           <section className="space-y-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Featured</h2>
+              <h2 className="text-xl font-bold">Featured</h2>
             </div>
             <FeaturedManga manga={featured} />
           </section>
@@ -61,23 +91,38 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>
-                {search ? "Results" : selectedGenre === "All" ? "Popular Manga" : selectedGenre}
+              <h2 className="text-xl font-bold">
+                {search
+                  ? "Results"
+                  : selectedGenre === "All"
+                    ? "Popular Manga"
+                    : selectedGenre}
               </h2>
             </div>
-            <span className="text-sm text-muted-foreground">{filtered.length} titles</span>
+            <span className="text-sm text-muted-foreground">
+              {filtered.length} titles
+            </span>
           </div>
 
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {filtered.map((manga) => (
-                <MangaCard key={manga.id} manga={manga} />
+                <MangaCard
+                  key={manga.id}
+                  manga={{
+                    ...manga,
+                    genres: manga.genres?.map((g: any) => g.name) || [],
+                    chapters: manga.chapters || [],
+                  }}
+                />
               ))}
             </div>
           ) : (
             <div className="text-center py-20 space-y-3">
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">No manga found. Try a different search or genre.</p>
+              <p className="text-muted-foreground">
+                No manga found. Try a different search or genre.
+              </p>
             </div>
           )}
         </section>
@@ -87,7 +132,9 @@ const Index = () => {
       <footer className="border-t border-border py-8 mt-12">
         <div className="container mx-auto px-4 text-center">
           <p className="text-sm text-muted-foreground">
-            © 2026 <span className="text-gradient-orange font-semibold">MangaVerse</span>. All rights reserved.
+            © 2026{" "}
+            <span className="text-gradient-orange font-semibold">MangaVerse</span>
+            . All rights reserved.
           </p>
         </div>
       </footer>
