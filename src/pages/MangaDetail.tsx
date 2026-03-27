@@ -4,11 +4,13 @@ import { Star, BookOpen, ArrowLeft, Clock, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import MangaReader from "@/components/MangaReader";
-import { mangaList, samplePages } from "@/data/manga";
+import { mangaList } from "@/data/manga";
+
 
 const MangaDetail = () => {
   const { id } = useParams();
   const [readerOpen, setReaderOpen] = useState(false);
+  const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
   const manga = mangaList.find((m) => m.id === id);
 
   if (!manga) {
@@ -70,11 +72,10 @@ const MangaDetail = () => {
                 <span className="font-bold text-foreground">{manga.rating}</span>
               </div>
               <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />{manga.chapters} Chapters
+                <Clock className="h-4 w-4" />{manga.chapters.length} Chapters
               </span>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                manga.status === "Ongoing" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
-              }`}>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${manga.status === "Ongoing" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
+                }`}>
                 {manga.status}
               </span>
             </div>
@@ -90,7 +91,10 @@ const MangaDetail = () => {
             </div>
 
             <Button
-              onClick={() => setReaderOpen(true)}
+              onClick={() => {
+                setSelectedPdf(manga.chapters[0].pdfUrl); // open first chapter
+                setReaderOpen(true);
+              }}
               className="bg-gradient-orange shadow-glow hover:opacity-90 transition-opacity text-base px-8 py-3 h-auto"
             >
               <BookOpen className="h-5 w-5 mr-2" />
@@ -103,30 +107,35 @@ const MangaDetail = () => {
         <section className="mt-12 space-y-4">
           <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Chapters</h2>
           <div className="grid gap-2">
-            {Array.from({ length: Math.min(manga.chapters, 20) }, (_, i) => (
+            {manga.chapters.slice(0, 20).map((ch) => (
               <button
-                key={i}
-                onClick={() => setReaderOpen(true)}
+                key={ch.number}
+                onClick={() => {
+                  setSelectedPdf(ch.pdfUrl);
+                  setReaderOpen(true);
+                }}
                 className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-card hover:bg-secondary hover:border-primary/30 transition-all group"
               >
                 <span className="text-sm font-medium text-foreground">
-                  Chapter {i + 1}
+                  {ch.number}: {ch.title}
                 </span>
-                <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">Read →</span>
+                <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors">
+                  Read →
+                </span>
               </button>
             ))}
           </div>
-          {manga.chapters > 20 && (
+          {manga.chapters.length > 20 && (
             <p className="text-sm text-muted-foreground text-center">
-              + {manga.chapters - 20} more chapters
+              + {manga.chapters.length - 20} more chapters
             </p>
           )}
         </section>
       </main>
 
-      {readerOpen && (
+      {readerOpen && manga.chapters[0].pdfUrl && (
         <MangaReader
-          pages={samplePages}
+          pdfUrl={selectedPdf} // fallback for now
           title={manga.title}
           onClose={() => setReaderOpen(false)}
         />

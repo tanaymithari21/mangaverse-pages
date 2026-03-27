@@ -42,10 +42,9 @@ const FeaturedManga = ({ manga }: FeaturedMangaProps) => {
               <Star className="h-4 w-4 fill-primary text-primary" />
               <span className="text-sm font-semibold text-foreground">{manga.rating}</span>
             </div>
-            <span className="text-sm text-muted-foreground">{manga.chapters} Chapters</span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-              manga.status === "Ongoing" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
-            }`}>
+            <span className="text-sm text-muted-foreground">{manga.chapters.length} Chapters</span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${manga.status === "Ongoing" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
+              }`}>
               {manga.status}
             </span>
           </div>

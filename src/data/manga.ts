@@ -5,7 +5,11 @@ export interface Manga {
   description: string;
   genres: string[];
   rating: number;
-  chapters: number;
+  chapters: {
+    number: number;
+    title: string;
+    pdfUrl: string;
+  }[];
   status: "Ongoing" | "Completed";
   author: string;
   year: number;
@@ -25,7 +29,11 @@ export const mangaList: Manga[] = [
     description: "In a world where ancient swords hold the power of forgotten gods, a young blacksmith discovers a blade that whispers secrets of a lost civilization.",
     genres: ["Action", "Fantasy", "Adventure"],
     rating: 4.8,
-    chapters: 156,
+    // ✅ ADD THIS
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" },
+      { number: 2, title: "Good Day", pdfUrl: "/Tanay_Mithari_Java_Developer_Resume.pdf" },
+    ],
     status: "Ongoing",
     author: "Takeshi Yamamoto",
     year: 2021
@@ -37,7 +45,9 @@ export const mangaList: Manga[] = [
     description: "A cyberpunk thriller set in a dystopian megacity where hackers fight against corporate overlords controlling reality itself.",
     genres: ["Sci-Fi", "Thriller", "Action"],
     rating: 4.6,
-    chapters: 89,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Ongoing",
     author: "Rei Nakamura",
     year: 2022
@@ -49,7 +59,9 @@ export const mangaList: Manga[] = [
     description: "At a prestigious academy where students train in magical arts, a scholarship student uncovers a dark conspiracy among the elite.",
     genres: ["Fantasy", "Mystery", "Drama"],
     rating: 4.5,
-    chapters: 203,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Completed",
     author: "Sakura Aoi",
     year: 2019
@@ -61,7 +73,9 @@ export const mangaList: Manga[] = [
     description: "An epic tale of warring kingdoms and the legendary dragon riders who hold the balance of power in a fractured world.",
     genres: ["Fantasy", "Action", "Adventure"],
     rating: 4.9,
-    chapters: 312,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Ongoing",
     author: "Hiroshi Tanaka",
     year: 2018
@@ -73,7 +87,9 @@ export const mangaList: Manga[] = [
     description: "A touching romance between a deaf musician and a voice actress, exploring love beyond words in modern Tokyo.",
     genres: ["Romance", "Drama", "Slice of Life"],
     rating: 4.7,
-    chapters: 67,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Completed",
     author: "Yuki Hayashi",
     year: 2020
@@ -85,7 +101,9 @@ export const mangaList: Manga[] = [
     description: "Deep beneath the ocean lies a world of monsters and treasure. One diver's obsession leads them into the darkest depths imaginable.",
     genres: ["Horror", "Adventure", "Supernatural"],
     rating: 4.4,
-    chapters: 134,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Ongoing",
     author: "Kaito Mizuki",
     year: 2021
@@ -97,7 +115,9 @@ export const mangaList: Manga[] = [
     description: "A political thriller in a medieval fantasy setting where spies and assassins determine the fate of empires.",
     genres: ["Thriller", "Fantasy", "Mystery"],
     rating: 4.6,
-    chapters: 178,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Ongoing",
     author: "Misaki Endo",
     year: 2020
@@ -109,7 +129,9 @@ export const mangaList: Manga[] = [
     description: "A underdog high school soccer team fights their way to the nationals, forging bonds that last a lifetime.",
     genres: ["Sports", "Comedy", "Drama"],
     rating: 4.3,
-    chapters: 245,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Completed",
     author: "Daisuke Kato",
     year: 2017
@@ -121,7 +143,9 @@ export const mangaList: Manga[] = [
     description: "A young witch runs a magical flower shop in a sleepy countryside town, helping troubled souls find peace through enchanted botanicals.",
     genres: ["Slice of Life", "Fantasy", "Comedy"],
     rating: 4.5,
-    chapters: 92,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Ongoing",
     author: "Hana Fujimoto",
     year: 2023
@@ -133,7 +157,9 @@ export const mangaList: Manga[] = [
     description: "When a mysterious virus turns people into superhuman warriors, a team of scientists races to find a cure before society collapses.",
     genres: ["Sci-Fi", "Action", "Thriller"],
     rating: 4.7,
-    chapters: 56,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Ongoing",
     author: "Ryo Ishida",
     year: 2024
@@ -145,7 +171,9 @@ export const mangaList: Manga[] = [
     description: "A teenager who can see spirits teams up with a fox demon to solve supernatural crimes across Japan.",
     genres: ["Supernatural", "Mystery", "Action"],
     rating: 4.8,
-    chapters: 198,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Completed",
     author: "Shiro Watanabe",
     year: 2019
@@ -157,7 +185,9 @@ export const mangaList: Manga[] = [
     description: "The misadventures of a group of aspiring comedians trying to make it big in Osaka's competitive comedy scene.",
     genres: ["Comedy", "Slice of Life", "Drama"],
     rating: 4.2,
-    chapters: 145,
+    chapters: [
+      { number: 1, title: "New", pdfUrl: "/sample.pdf" }
+    ],
     status: "Ongoing",
     author: "Miki Suzuki",
     year: 2022

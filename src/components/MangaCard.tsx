@@ -23,11 +23,10 @@ const MangaCard = ({ manga }: MangaCardProps) => {
       </div>
 
       <div className="absolute top-3 right-3">
-        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-          manga.status === "Ongoing"
-            ? "bg-primary text-primary-foreground"
-            : "bg-secondary text-secondary-foreground"
-        }`}>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${manga.status === "Ongoing"
+          ? "bg-primary text-primary-foreground"
+          : "bg-secondary text-secondary-foreground"
+          }`}>
           {manga.status}
         </span>
       </div>
@@ -41,7 +40,7 @@ const MangaCard = ({ manga }: MangaCardProps) => {
             <Star className="h-3.5 w-3.5 fill-primary text-primary" />
             <span className="text-xs text-muted-foreground">{manga.rating}</span>
           </div>
-          <span className="text-xs text-muted-foreground">Ch. {manga.chapters}</span>
+          <span className="text-xs text-muted-foreground">Ch. {manga.chapters.length}</span>
         </div>
         <div className="flex flex-wrap gap-1">
           {manga.genres.slice(0, 2).map((g) => (
