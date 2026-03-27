@@ -9,24 +9,13 @@ interface MangaReaderProps {
 
 const MangaReader = ({ pages, title, onClose }: MangaReaderProps) => {
   const [currentPage, setCurrentPage] = useState(0);
-  const [isFlipping, setIsFlipping] = useState(false);
-  const [flipDirection, setFlipDirection] = useState<"next" | "prev" | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   const goToPage = useCallback((direction: "next" | "prev") => {
-    if (isFlipping) return;
     if (direction === "next" && currentPage >= pages.length - 1) return;
     if (direction === "prev" && currentPage <= 0) return;
-
-    setFlipDirection(direction);
-    setIsFlipping(true);
-
-    setTimeout(() => {
-      setCurrentPage((p) => direction === "next" ? p + 1 : p - 1);
-      setIsFlipping(false);
-      setFlipDirection(null);
-    }, 600);
-  }, [isFlipping, currentPage, pages.length]);
+    setCurrentPage((p) => direction === "next" ? p + 1 : p - 1);
+  }, [currentPage, pages.length]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "ArrowRight" || e.key === " ") goToPage("next");
@@ -36,7 +25,7 @@ const MangaReader = ({ pages, title, onClose }: MangaReaderProps) => {
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-background flex flex-col ${fullscreen ? "" : ""}`}
+      className="fixed inset-0 z-50 bg-background flex flex-col"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       autoFocus
@@ -66,59 +55,25 @@ const MangaReader = ({ pages, title, onClose }: MangaReaderProps) => {
 
       {/* Reader */}
       <div className="flex-1 flex items-center justify-center relative overflow-hidden" style={{ background: 'var(--gradient-dark)' }}>
-        {/* Left arrow */}
         <button
           onClick={() => goToPage("prev")}
-          disabled={currentPage === 0 || isFlipping}
+          disabled={currentPage === 0}
           className="absolute left-4 z-10 p-2 rounded-full bg-card/60 backdrop-blur-sm border border-border text-foreground hover:bg-card transition-all disabled:opacity-20 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
 
-        {/* Book */}
-        <div className="book-container relative w-full max-w-2xl mx-auto" style={{ aspectRatio: '2/3' }}>
-          {/* Current page */}
-          <div
-            className={`absolute inset-0 flex items-center justify-center p-4 ${
-              isFlipping && flipDirection === "next" ? "page page-turning" : "page"
-            }`}
-          >
-            <img
-              src={pages[currentPage]}
-              alt={`Page ${currentPage + 1}`}
-              className="max-h-full max-w-full object-contain rounded-lg shadow-card"
-            />
-            {/* Page shadow effect during flip */}
-            {isFlipping && <div className="page-shadow absolute inset-0 rounded-lg" />}
-          </div>
-
-          {/* Next page (visible during flip) */}
-          {isFlipping && flipDirection === "next" && currentPage + 1 < pages.length && (
-            <div className="absolute inset-0 flex items-center justify-center p-4">
-              <img
-                src={pages[currentPage + 1]}
-                alt={`Page ${currentPage + 2}`}
-                className="max-h-full max-w-full object-contain rounded-lg shadow-card"
-              />
-            </div>
-          )}
-
-          {/* Previous page peek during back flip */}
-          {isFlipping && flipDirection === "prev" && currentPage > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center p-4">
-              <img
-                src={pages[currentPage - 1]}
-                alt={`Page ${currentPage}`}
-                className="max-h-full max-w-full object-contain rounded-lg shadow-card"
-              />
-            </div>
-          )}
+        <div className="relative w-full max-w-2xl mx-auto flex items-center justify-center p-4" style={{ aspectRatio: '2/3' }}>
+          <img
+            src={pages[currentPage]}
+            alt={`Page ${currentPage + 1}`}
+            className="max-h-full max-w-full object-contain rounded-lg shadow-card"
+          />
         </div>
 
-        {/* Right arrow */}
         <button
           onClick={() => goToPage("next")}
-          disabled={currentPage >= pages.length - 1 || isFlipping}
+          disabled={currentPage >= pages.length - 1}
           className="absolute right-4 z-10 p-2 rounded-full bg-card/60 backdrop-blur-sm border border-border text-foreground hover:bg-card transition-all disabled:opacity-20 disabled:cursor-not-allowed"
         >
           <ChevronRight className="h-6 w-6" />
@@ -128,7 +83,7 @@ const MangaReader = ({ pages, title, onClose }: MangaReaderProps) => {
       {/* Page progress bar */}
       <div className="h-1 bg-secondary">
         <div
-          className="h-full bg-gradient-orange transition-all duration-500"
+          className="h-full bg-gradient-orange transition-all duration-300"
           style={{ width: `${((currentPage + 1) / pages.length) * 100}%` }}
         />
       </div>
