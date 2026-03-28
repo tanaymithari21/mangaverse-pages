@@ -38,6 +38,18 @@ export const mangaApi = {
 
   getPages: (mangaId: string, chapterId: string) =>
     request<any>(`/manga/${mangaId}/chapters/${chapterId}/pages`),
+
+  upload: (formData: FormData) =>
+    fetch(`${API_BASE_URL}/manga`, { method: "POST", body: formData }).then((r) => {
+      if (!r.ok) throw new Error("Upload failed");
+      return r.json();
+    }),
+
+  uploadChapter: (mangaId: string, formData: FormData) =>
+    fetch(`${API_BASE_URL}/manga/${mangaId}/chapters`, { method: "POST", body: formData }).then((r) => {
+      if (!r.ok) throw new Error("Upload failed");
+      return r.json();
+    }),
 };
 
 // ---- Auth endpoints (for future use) ----
