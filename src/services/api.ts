@@ -50,6 +50,22 @@ export const mangaApi = {
       if (!r.ok) throw new Error("Upload failed");
       return r.json();
     }),
+
+  update: (id: string, formData: FormData) =>
+    fetch(`${API_BASE_URL}/manga/${id}`, { method: "PUT", body: formData }).then((r) => {
+      if (!r.ok) throw new Error("Update failed");
+      return r.json();
+    }),
+
+  delete: (id: string) =>
+    fetch(`${API_BASE_URL}/manga/${id}`, { method: "DELETE" }).then((r) => {
+      if (!r.ok) throw new Error("Delete failed");
+    }),
+
+  deleteChapter: (mangaId: string, chapterId: string) =>
+    fetch(`${API_BASE_URL}/manga/${mangaId}/chapters/${chapterId}`, { method: "DELETE" }).then((r) => {
+      if (!r.ok) throw new Error("Delete failed");
+    }),
 };
 
 // ---- Auth endpoints (for future use) ----
