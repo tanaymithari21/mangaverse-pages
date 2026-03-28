@@ -23,6 +23,7 @@ const App = () => (
           <Route path="/manga/:id" element={<MangaDetail />} />
           <Route path="/upload-manga" element={<UploadManga />} />
           <Route path="/upload-chapter" element={<UploadChapter />} />
+          <Route path="/edit-manga/:id" element={<EditManga />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
