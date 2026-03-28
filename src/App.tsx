@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import MangaDetail from "./pages/MangaDetail.tsx";
 import UploadManga from "./pages/UploadManga.tsx";
+import EditManga from "./pages/EditManga.tsx";
 import UploadChapter from "./pages/UploadChapter.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
