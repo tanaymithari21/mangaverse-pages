@@ -39,22 +39,22 @@ export const mangaApi = {
   getPages: (mangaId: string, chapterId: string) =>
     request<any>(`/manga/${mangaId}/chapters/${chapterId}/pages`),
 
-  upload: (formData: FormData) =>
-    fetch(`${API_BASE_URL}/manga`, { method: "POST", body: formData }).then((r) => {
-      if (!r.ok) throw new Error("Upload failed");
-      return r.json();
+  upload: (data: Record<string, any>) =>
+    request<any>("/manga", {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 
-  uploadChapter: (mangaId: string, formData: FormData) =>
-    fetch(`${API_BASE_URL}/manga/${mangaId}/chapters`, { method: "POST", body: formData }).then((r) => {
-      if (!r.ok) throw new Error("Upload failed");
-      return r.json();
+  uploadChapter: (mangaId: string, data: Record<string, any>) =>
+    request<any>(`/manga/${mangaId}/chapters`, {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 
-  update: (id: string, formData: FormData) =>
-    fetch(`${API_BASE_URL}/manga/${id}`, { method: "PUT", body: formData }).then((r) => {
-      if (!r.ok) throw new Error("Update failed");
-      return r.json();
+  update: (id: string, data: Record<string, any>) =>
+    request<any>(`/manga/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
     }),
 
   delete: (id: string) =>
