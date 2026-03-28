@@ -10,8 +10,10 @@ import FeaturedManga from "@/components/FeaturedManga";
 const Index = () => {
   const [search, setSearch] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
-  const [mangaList, setMangaList] = useState<any[]>([]); // fetched manga
+  const [mangaList, setMangaList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [allGenres, setAllGenres] = useState<string[]>([]);
 
   // Fetch manga from backend
   useEffect(() => {
@@ -20,6 +22,22 @@ const Index = () => {
       .then((res) => {
         setMangaList(res.data);
         setLoading(false);
+
+        // 🔥 SIMPLE + SAFE extraction
+        let all: string[] = [];
+
+        res.data.forEach((m: any) => {
+          if (m.genres && Array.isArray(m.genres)) {
+            all = all.concat(m.genres);
+          }
+        });
+
+        // remove duplicates
+        const uniqueGenres = [...new Set(all)];
+
+        console.log("GENRES FOUND:", uniqueGenres);
+
+        setAllGenres(["All", ...uniqueGenres]);
       })
       .catch((err) => {
         console.error("Failed to fetch manga:", err);
@@ -27,7 +45,7 @@ const Index = () => {
       });
   }, []);
 
-  // Filtered manga based on search and genre
+  // Filter manga based on search and genre
   const filtered = useMemo(() => {
     return mangaList.filter((m) => {
       const matchesSearch =
@@ -35,14 +53,13 @@ const Index = () => {
         m.author?.toLowerCase().includes(search.toLowerCase());
 
       const matchesGenre =
-        selectedGenre === "All" ||
-        m.genres?.some((g: any) => g.name === selectedGenre);
+        selectedGenre === "All" || m.genres?.includes(selectedGenre);
 
       return matchesSearch && matchesGenre;
     });
   }, [search, selectedGenre, mangaList]);
 
-  const featured = mangaList.length > 0 ? mangaList[0] : null;
+  const featured = filtered.length > 0 ? filtered[0] : null;
 
   if (loading) {
     return (
@@ -72,7 +89,7 @@ const Index = () => {
           <div className="flex justify-center">
             <SearchBar value={search} onChange={setSearch} />
           </div>
-          <GenreFilter selected={selectedGenre} onChange={setSelectedGenre} />
+          <GenreFilter selected={selectedGenre} onChange={setSelectedGenre} options={allGenres} />
         </section>
 
         {/* Featured */}
@@ -99,9 +116,7 @@ const Index = () => {
                     : selectedGenre}
               </h2>
             </div>
-            <span className="text-sm text-muted-foreground">
-              {filtered.length} titles
-            </span>
+            <span className="text-sm text-muted-foreground">{filtered.length} titles</span>
           </div>
 
           {filtered.length > 0 ? (
@@ -111,7 +126,7 @@ const Index = () => {
                   key={manga.id}
                   manga={{
                     ...manga,
-                    genres: manga.genres?.map((g: any) => g.name) || [],
+                    genres: manga.genres || [],
                     chapters: manga.chapters || [],
                   }}
                 />
@@ -127,17 +142,6 @@ const Index = () => {
           )}
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-8 mt-12">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-sm text-muted-foreground">
-            © 2026{" "}
-            <span className="text-gradient-orange font-semibold">MangaVerse</span>
-            . All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 };

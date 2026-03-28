@@ -1,14 +1,14 @@
-import { genres } from "@/data/manga";
-
+// GenreFilter.tsx
 interface GenreFilterProps {
   selected: string;
   onChange: (genre: string) => void;
+  options: string[]; // ✅ dynamic list of genres
 }
 
-const GenreFilter = ({ selected, onChange }: GenreFilterProps) => {
+const GenreFilter = ({ selected, onChange, options }: GenreFilterProps) => {
   return (
     <div className="flex flex-wrap gap-2">
-      {genres.map((genre) => (
+      {options.map((genre) => (
         <button
           key={genre}
           onClick={() => onChange(genre)}

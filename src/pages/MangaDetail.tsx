@@ -145,7 +145,6 @@
 // };
 
 // export default MangaDetail;
-
 import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Star, BookOpen, ArrowLeft, Clock, User, Calendar } from "lucide-react";
@@ -172,7 +171,7 @@ interface Manga {
   cover: string;
   description: string;
   rating: number;
-  status: string;
+  status: "Ongoing" | "Completed";
   author: string;
   year: number;
   chapters: Chapter[];
@@ -181,27 +180,15 @@ interface Manga {
 
 const MangaDetail = () => {
   const { id } = useParams();
+  const [manga, setManga] = useState<Manga | null>(null);
   const [readerOpen, setReaderOpen] = useState(false);
   const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
-  const [manga, setManga] = useState<Manga | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch manga from backend API
   useEffect(() => {
-    if (!id) return;
     axios.get(`http://localhost:8080/api/manga/${id}`)
-      .then((res) => setManga(res.data))
-      .catch((err) => console.error("Failed to fetch manga:", err))
-      .finally(() => setLoading(false));
+      .then(res => setManga(res.data))
+      .catch(err => console.error("Failed to fetch manga:", err));
   }, [id]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading manga...</p>
-      </div>
-    );
-  }
 
   if (!manga) {
     return (
@@ -264,7 +251,8 @@ const MangaDetail = () => {
               <span className="flex items-center gap-1 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />{manga.chapters?.length ?? 0} Chapters
               </span>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${manga.status === "Ongoing" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${manga.status === "Ongoing" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
+                }`}>
                 {manga.status}
               </span>
             </div>
@@ -274,15 +262,17 @@ const MangaDetail = () => {
             </p>
 
             <div className="flex flex-wrap gap-2">
-              {manga.genres?.map((g) => (
+              {manga.genres?.map(g => (
                 <span key={g.id} className="genre-chip text-sm">{g.name}</span>
               ))}
             </div>
 
             <Button
               onClick={() => {
-                if (manga.chapters?.[0]) setSelectedPdf(manga.chapters[0].pdfUrl);
-                setReaderOpen(true);
+                if (manga.chapters?.[0]?.pdfUrl) {
+                  setSelectedPdf(manga.chapters[0].pdfUrl);
+                  setReaderOpen(true);
+                }
               }}
               className="bg-gradient-orange shadow-glow hover:opacity-90 transition-opacity text-base px-8 py-3 h-auto"
             >
@@ -294,12 +284,15 @@ const MangaDetail = () => {
 
         {/* Chapters list */}
         <section className="mt-12 space-y-4">
-          <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>Chapters</h2>
+          <h2 className="text-xl font-bold">Chapters</h2>
           <div className="grid gap-2">
             {manga.chapters?.slice(0, 20).map((ch) => (
               <button
                 key={ch.id}
-                onClick={() => setSelectedPdf(ch.pdfUrl)}
+                onClick={() => {
+                  setSelectedPdf(ch.pdfUrl);  // <-- set the PDF path
+                  setReaderOpen(true);        // <-- open the reader
+                }}
                 className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-card hover:bg-secondary hover:border-primary/30 transition-all group"
               >
                 <span className="text-sm font-medium text-foreground">
@@ -317,8 +310,18 @@ const MangaDetail = () => {
             </p>
           )}
         </section>
+
+        {/* PDF Reader */}
+        {readerOpen && selectedPdf && (
+          <MangaReader
+            pdfUrl={selectedPdf}   // <-- pass selected chapter PDF
+            title={manga.title}
+            onClose={() => setReaderOpen(false)}
+          />
+        )}
       </main>
 
+      {/* Manga Reader Modal */}
       {readerOpen && selectedPdf && (
         <MangaReader
           pdfUrl={selectedPdf}
