@@ -4,12 +4,12 @@ import { Upload, ImagePlus, X, Trash2, FileText, Save, AlertTriangle } from "luc
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { genres } from "@/data/manga";
+import { fileStorage } from "@/services/fileStorage";
 
 interface ChapterInfo {
   id: string;
   number: number;
   title: string;
-  pdfUrl: string;
 }
 
 interface MangaDetails {
@@ -21,7 +21,6 @@ interface MangaDetails {
   rating: number;
   status: "Ongoing" | "Completed";
   genres: string[];
-  cover: string;
   chapters: ChapterInfo[];
 }
 
@@ -40,9 +39,8 @@ const EditManga = () => {
   const [rating, setRating] = useState(0);
   const [status, setStatus] = useState<"Ongoing" | "Completed">("Ongoing");
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
-  const [existingCover, setExistingCover] = useState<string | null>(null);
-  const [newCoverFile, setNewCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [newCoverFile, setNewCoverFile] = useState<File | null>(null);
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -68,10 +66,12 @@ const EditManga = () => {
       setRating(data.rating);
       setStatus(data.status);
       setSelectedGenres(data.genres);
-      setExistingCover(data.cover);
-      setCoverPreview(data.cover);
       setChapters(data.chapters || []);
       setNewChapterNumber((data.chapters?.length || 0) + 1);
+
+      // Load cover from IndexedDB
+      const coverUrl = await fileStorage.getCover(String(id));
+      if (coverUrl) setCoverPreview(coverUrl);
     } catch (err) {
       console.error("Failed to fetch manga:", err);
       alert("Failed to load manga. Make sure the backend is running.");
@@ -98,21 +98,24 @@ const EditManga = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("author", author);
-      formData.append("description", description);
-      formData.append("year", String(year));
-      formData.append("rating", String(rating));
-      formData.append("status", status);
-      formData.append("genres", JSON.stringify(selectedGenres));
-      if (newCoverFile) {
-        formData.append("cover", newCoverFile);
+      // Save new cover to IndexedDB if changed
+      if (newCoverFile && id) {
+        await fileStorage.saveCover(id, newCoverFile);
       }
 
+      // Send only metadata to backend
       const res = await fetch(`${API_BASE_URL}/manga/${id}`, {
         method: "PUT",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          author,
+          description,
+          year,
+          rating,
+          status,
+          genres: selectedGenres,
+        }),
       });
       if (!res.ok) throw new Error("Save failed");
       alert("Manga updated successfully!");
@@ -128,6 +131,10 @@ const EditManga = () => {
     try {
       const res = await fetch(`${API_BASE_URL}/manga/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
+
+      // Delete all local files
+      if (id) await fileStorage.deleteAllForManga(id);
+
       alert("Manga deleted.");
       navigate("/");
     } catch (err) {
@@ -136,13 +143,15 @@ const EditManga = () => {
     }
   };
 
-  const handleDeleteChapter = async (chapterId: string) => {
+  const handleDeleteChapter = async (chapterId: string, chapterNumber: number) => {
     if (!confirm("Delete this chapter?")) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/manga/${id}/chapters/${chapterId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`${API_BASE_URL}/manga/${id}/chapters/${chapterId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
+
+      // Delete chapter PDF from IndexedDB
+      if (id) await fileStorage.deleteChapter(id, chapterNumber);
+
       setChapters((prev) => prev.filter((c) => c.id !== chapterId));
     } catch (err) {
       alert("Delete failed. Make sure the backend is running.");
@@ -151,17 +160,20 @@ const EditManga = () => {
   };
 
   const handleUploadChapter = async () => {
-    if (!newChapterPdf) return;
+    if (!newChapterPdf || !id) return;
     setUploadingChapter(true);
     try {
-      const formData = new FormData();
-      formData.append("chapterNumber", String(newChapterNumber));
-      formData.append("title", newChapterTitle);
-      formData.append("pdf", newChapterPdf);
+      // Save PDF to IndexedDB
+      await fileStorage.saveChapter(id, newChapterNumber, newChapterPdf);
 
+      // Send only metadata to backend
       const res = await fetch(`${API_BASE_URL}/manga/${id}/chapters`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chapterNumber: newChapterNumber,
+          title: newChapterTitle,
+        }),
       });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
@@ -189,29 +201,21 @@ const EditManga = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-2xl mx-auto px-4 py-12">
-        <h1
-          className="text-3xl font-bold mb-8 text-primary"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
+        <h1 className="text-3xl font-bold mb-8 text-primary" style={{ fontFamily: "var(--font-heading)" }}>
           Edit Manga
         </h1>
 
         <form onSubmit={handleSave} className="space-y-6">
           {/* Cover */}
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Cover Image
-            </label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Cover Image</label>
             <div className="flex items-start gap-4">
               {coverPreview ? (
                 <div className="relative w-40 h-56 rounded-lg overflow-hidden border border-border">
                   <img src={coverPreview} alt="Cover" className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => {
-                      setNewCoverFile(null);
-                      setCoverPreview(existingCover);
-                    }}
+                    onClick={() => { setNewCoverFile(null); setCoverPreview(null); }}
                     className="absolute top-1 right-1 p-1 rounded-full bg-background/80 text-foreground hover:bg-destructive transition-colors"
                   >
                     <X className="h-3 w-3" />
@@ -261,15 +265,7 @@ const EditManga = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">Rating</label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                max="5"
-                value={rating}
-                onChange={(e) => setRating(Number(e.target.value))}
-                className="bg-card border-border"
-              />
+              <Input type="number" step="0.1" min="0" max="5" value={rating} onChange={(e) => setRating(Number(e.target.value))} className="bg-card border-border" />
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">Status</label>
@@ -313,9 +309,7 @@ const EditManga = () => {
 
         {/* Chapters Section */}
         <div className="mt-12 border-t border-border pt-8">
-          <h2 className="text-xl font-bold text-foreground mb-4" style={{ fontFamily: "var(--font-heading)" }}>
-            Chapters
-          </h2>
+          <h2 className="text-xl font-bold text-foreground mb-4" style={{ fontFamily: "var(--font-heading)" }}>Chapters</h2>
 
           {chapters.length === 0 ? (
             <p className="text-sm text-muted-foreground mb-6">No chapters yet.</p>
@@ -330,7 +324,7 @@ const EditManga = () => {
                     </span>
                   </div>
                   <button
-                    onClick={() => handleDeleteChapter(ch.id)}
+                    onClick={() => handleDeleteChapter(ch.id, ch.number)}
                     className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -346,57 +340,32 @@ const EditManga = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Chapter #</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={newChapterNumber}
-                  onChange={(e) => setNewChapterNumber(Number(e.target.value))}
-                  className="bg-card border-border"
-                />
+                <Input type="number" min={1} value={newChapterNumber} onChange={(e) => setNewChapterNumber(Number(e.target.value))} className="bg-card border-border" />
               </div>
               <div>
                 <label className="block text-xs text-muted-foreground mb-1">Title</label>
-                <Input
-                  value={newChapterTitle}
-                  onChange={(e) => setNewChapterTitle(e.target.value)}
-                  placeholder="Chapter title"
-                  className="bg-card border-border"
-                />
+                <Input value={newChapterTitle} onChange={(e) => setNewChapterTitle(e.target.value)} placeholder="Chapter title" className="bg-card border-border" />
               </div>
             </div>
             {newChapterPdf ? (
               <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
                 <FileText className="h-5 w-5 text-primary shrink-0" />
                 <span className="text-sm text-foreground truncate flex-1">{newChapterPdf.name}</span>
-                <button
-                  onClick={() => setNewChapterPdf(null)}
-                  className="text-xs text-muted-foreground hover:text-destructive"
-                >
-                  Remove
-                </button>
+                <button onClick={() => setNewChapterPdf(null)} className="text-xs text-muted-foreground hover:text-destructive">Remove</button>
               </div>
             ) : (
               <label className="flex flex-col items-center justify-center h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors">
                 <FileText className="h-5 w-5 text-muted-foreground mb-1" />
-                <span className="text-xs text-muted-foreground">Select PDF</span>
+                <span className="text-xs text-muted-foreground">Select PDF (saved locally)</span>
                 <input
                   type="file"
                   accept=".pdf,application/pdf"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) setNewChapterPdf(f);
-                  }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setNewChapterPdf(f); }}
                   className="hidden"
                 />
               </label>
             )}
-            <Button
-              type="button"
-              onClick={handleUploadChapter}
-              disabled={!newChapterPdf || uploadingChapter}
-              className="w-full gap-2"
-              variant="secondary"
-            >
+            <Button type="button" onClick={handleUploadChapter} disabled={!newChapterPdf || uploadingChapter} className="w-full gap-2" variant="secondary">
               <Upload className="h-4 w-4" />
               {uploadingChapter ? "Uploading..." : "Upload Chapter"}
             </Button>
@@ -406,12 +375,7 @@ const EditManga = () => {
         {/* Delete Manga */}
         <div className="mt-12 border-t border-border pt-8">
           {!showDeleteConfirm ? (
-            <Button
-              type="button"
-              variant="destructive"
-              className="w-full gap-2"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
+            <Button type="button" variant="destructive" className="w-full gap-2" onClick={() => setShowDeleteConfirm(true)}>
               <Trash2 className="h-4 w-4" />
               Delete Manga
             </Button>
@@ -422,22 +386,8 @@ const EditManga = () => {
                 <span className="text-sm font-semibold">This will permanently delete the manga and all its chapters.</span>
               </div>
               <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  className="flex-1"
-                  onClick={handleDeleteManga}
-                >
-                  Yes, Delete
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
+                <Button type="button" variant="destructive" className="flex-1" onClick={handleDeleteManga}>Yes, Delete</Button>
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
               </div>
             </div>
           )}
