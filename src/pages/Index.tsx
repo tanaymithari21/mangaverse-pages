@@ -6,37 +6,42 @@ import SearchBar from "@/components/SearchBar";
 import GenreFilter from "@/components/GenreFilter";
 import MangaCard from "@/components/MangaCard";
 import FeaturedManga from "@/components/FeaturedManga";
+import { fileStorage } from "@/services/fileStorage";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 
 const Index = () => {
   const [search, setSearch] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [mangaList, setMangaList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [allGenres, setAllGenres] = useState<string[]>([]);
 
-  // Fetch manga from backend
+  // Fetch manga from backend, then resolve local covers
   useEffect(() => {
     axios
-      .get("http://localhost:8080/api/manga")
-      .then((res) => {
-        setMangaList(res.data);
+      .get(`${API_BASE_URL}/manga`)
+      .then(async (res) => {
+        const list = res.data;
+
+        // Resolve covers from IndexedDB
+        const withCovers = await Promise.all(
+          list.map(async (m: any) => {
+            const localCover = await fileStorage.getCover(String(m.id));
+            return { ...m, cover: localCover || m.cover || "/placeholder.svg" };
+          })
+        );
+
+        setMangaList(withCovers);
         setLoading(false);
 
-        // 🔥 SIMPLE + SAFE extraction
         let all: string[] = [];
-
         res.data.forEach((m: any) => {
           if (m.genres && Array.isArray(m.genres)) {
             all = all.concat(m.genres);
           }
         });
-
-        // remove duplicates
         const uniqueGenres = [...new Set(all)];
-
-        console.log("GENRES FOUND:", uniqueGenres);
-
         setAllGenres(["All", ...uniqueGenres]);
       })
       .catch((err) => {
@@ -45,16 +50,13 @@ const Index = () => {
       });
   }, []);
 
-  // Filter manga based on search and genre
   const filtered = useMemo(() => {
     return mangaList.filter((m) => {
       const matchesSearch =
         m.title?.toLowerCase().includes(search.toLowerCase()) ||
         m.author?.toLowerCase().includes(search.toLowerCase());
-
       const matchesGenre =
         selectedGenre === "All" || m.genres?.includes(selectedGenre);
-
       return matchesSearch && matchesGenre;
     });
   }, [search, selectedGenre, mangaList]);
@@ -109,11 +111,7 @@ const Index = () => {
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-bold">
-                {search
-                  ? "Results"
-                  : selectedGenre === "All"
-                    ? "Popular Manga"
-                    : selectedGenre}
+                {search ? "Results" : selectedGenre === "All" ? "Popular Manga" : selectedGenre}
               </h2>
             </div>
             <span className="text-sm text-muted-foreground">{filtered.length} titles</span>
@@ -135,9 +133,7 @@ const Index = () => {
           ) : (
             <div className="text-center py-20 space-y-3">
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">
-                No manga found. Try a different search or genre.
-              </p>
+              <p className="text-muted-foreground">No manga found. Try a different search or genre.</p>
             </div>
           )}
         </section>

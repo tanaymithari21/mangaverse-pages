@@ -4,7 +4,9 @@ import { Upload, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { genres } from "@/data/manga";
-import { mangaApi } from "@/services/api";
+import { fileStorage } from "@/services/fileStorage";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 
 const UploadManga = () => {
   const navigate = useNavigate();
@@ -38,25 +40,26 @@ const UploadManga = () => {
 
     setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("author", author);
-      formData.append("description", description);
-      formData.append("year", String(year));
-      formData.append("status", status);
-      formData.append("genres", JSON.stringify(selectedGenres));
-      formData.append("cover", coverFile);
-
-      // POST to Spring Boot backend
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+      // Send only metadata to backend
       const res = await fetch(`${API_BASE_URL}/manga`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          author,
+          description,
+          year,
+          status,
+          genres: selectedGenres,
+        }),
       });
 
       if (!res.ok) throw new Error("Upload failed");
-
       const data = await res.json();
+
+      // Save cover file to IndexedDB
+      await fileStorage.saveCover(String(data.id), coverFile);
+
       alert("Manga uploaded successfully!");
       navigate(`/manga/${data.id}`);
     } catch (err) {
@@ -99,38 +102,23 @@ const UploadManga = () => {
                 <label className="flex flex-col items-center justify-center w-40 h-56 rounded-lg border-2 border-dashed border-border bg-card hover:border-primary/50 cursor-pointer transition-colors">
                   <ImagePlus className="h-8 w-8 text-muted-foreground mb-2" />
                   <span className="text-xs text-muted-foreground">Select Cover</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleCoverChange}
-                    className="hidden"
-                  />
+                  <input type="file" accept="image/*" onChange={handleCoverChange} className="hidden" />
                 </label>
               )}
             </div>
+            <p className="text-xs text-muted-foreground mt-2">Cover is saved locally in your browser</p>
           </div>
 
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Title</label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Manga title"
-              required
-              className="bg-card border-border"
-            />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Manga title" required className="bg-card border-border" />
           </div>
 
           {/* Author */}
           <div>
             <label className="block text-sm font-medium text-muted-foreground mb-2">Author</label>
-            <Input
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-              placeholder="Author name"
-              className="bg-card border-border"
-            />
+            <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author name" className="bg-card border-border" />
           </div>
 
           {/* Description */}
@@ -149,12 +137,7 @@ const UploadManga = () => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">Year</label>
-              <Input
-                type="number"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-                className="bg-card border-border"
-              />
+              <Input type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} className="bg-card border-border" />
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground mb-2">Status</label>
@@ -190,11 +173,7 @@ const UploadManga = () => {
             </div>
           </div>
 
-          <Button
-            type="submit"
-            disabled={!coverFile || !title.trim() || submitting}
-            className="w-full gap-2"
-          >
+          <Button type="submit" disabled={!coverFile || !title.trim() || submitting} className="w-full gap-2">
             <Upload className="h-4 w-4" />
             {submitting ? "Uploading..." : "Upload Manga"}
           </Button>

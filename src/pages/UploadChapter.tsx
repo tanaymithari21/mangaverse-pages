@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Upload, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { fileStorage } from "@/services/fileStorage";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 
 const UploadChapter = () => {
   const [mangaId, setMangaId] = useState("");
@@ -23,16 +26,17 @@ const UploadChapter = () => {
 
     setSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append("mangaId", mangaId);
-      formData.append("chapterNumber", String(chapterNumber));
-      formData.append("title", chapterTitle);
-      formData.append("pdf", pdfFile);
+      // Save PDF to IndexedDB
+      await fileStorage.saveChapter(mangaId, chapterNumber, pdfFile);
 
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+      // Send only metadata to backend
       const res = await fetch(`${API_BASE_URL}/manga/${mangaId}/chapters`, {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chapterNumber,
+          title: chapterTitle,
+        }),
       });
 
       if (!res.ok) throw new Error("Upload failed");
@@ -62,91 +66,46 @@ const UploadChapter = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Manga ID */}
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Manga ID
-            </label>
-            <Input
-              value={mangaId}
-              onChange={(e) => setMangaId(e.target.value)}
-              placeholder="Enter manga ID"
-              required
-              className="bg-card border-border"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              The ID of the manga this chapter belongs to
-            </p>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Manga ID</label>
+            <Input value={mangaId} onChange={(e) => setMangaId(e.target.value)} placeholder="Enter manga ID" required className="bg-card border-border" />
+            <p className="text-xs text-muted-foreground mt-1">The ID of the manga this chapter belongs to</p>
           </div>
 
           {/* Chapter Number */}
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Chapter Number
-            </label>
-            <Input
-              type="number"
-              value={chapterNumber}
-              onChange={(e) => setChapterNumber(Number(e.target.value))}
-              min={1}
-              required
-              className="bg-card border-border"
-            />
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter Number</label>
+            <Input type="number" value={chapterNumber} onChange={(e) => setChapterNumber(Number(e.target.value))} min={1} required className="bg-card border-border" />
           </div>
 
           {/* Chapter Title */}
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Chapter Title
-            </label>
-            <Input
-              value={chapterTitle}
-              onChange={(e) => setChapterTitle(e.target.value)}
-              placeholder="e.g. The Beginning"
-              className="bg-card border-border"
-            />
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter Title</label>
+            <Input value={chapterTitle} onChange={(e) => setChapterTitle(e.target.value)} placeholder="e.g. The Beginning" className="bg-card border-border" />
           </div>
 
           {/* PDF Upload */}
           <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">
-              Chapter PDF
-            </label>
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter PDF</label>
             {pdfFile ? (
               <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
                 <FileText className="h-8 w-8 text-primary shrink-0" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{pdfFile.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+                  <p className="text-xs text-muted-foreground">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPdfFile(null)}
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  Remove
-                </button>
+                <button type="button" onClick={() => setPdfFile(null)} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Remove</button>
               </div>
             ) : (
               <label className="flex flex-col items-center justify-center h-32 rounded-lg border-2 border-dashed border-border bg-card hover:border-primary/50 cursor-pointer transition-colors">
                 <FileText className="h-8 w-8 text-muted-foreground mb-2" />
                 <span className="text-sm text-muted-foreground">Select PDF file</span>
-                <span className="text-xs text-muted-foreground mt-1">PDF format only</span>
-                <input
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={handlePdfChange}
-                  className="hidden"
-                />
+                <span className="text-xs text-muted-foreground mt-1">PDF saved locally in your browser</span>
+                <input type="file" accept=".pdf,application/pdf" onChange={handlePdfChange} className="hidden" />
               </label>
             )}
           </div>
 
-          <Button
-            type="submit"
-            disabled={!pdfFile || !mangaId.trim() || submitting}
-            className="w-full gap-2"
-          >
+          <Button type="submit" disabled={!pdfFile || !mangaId.trim() || submitting} className="w-full gap-2">
             <Upload className="h-4 w-4" />
             {submitting ? "Uploading..." : "Upload Chapter"}
           </Button>
