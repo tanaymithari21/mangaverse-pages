@@ -3,14 +3,16 @@ import { useState, useEffect } from "react";
 import { Star, BookOpen, ArrowLeft, Clock, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
-import MangaReader from "@/components/MangaReader";
-import { fileStorage } from "@/services/fileStorage";
+// NEW: Image-based reader
+import ImageReader from "@/components/ImageReader";
 import axios from "axios";
+import { uploadToCloudinary } from "@/services/uploadToCloudinary";
 
 interface Chapter {
   id: number;
   number: number;
   title: string;
+  imageUrls?: string[]; // array of images for the chapter
 }
 
 interface Genre {
@@ -28,6 +30,7 @@ interface Manga {
   year: number;
   chapters: Chapter[];
   genres: Genre[];
+  cover: string; // Cloudinary URL
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
@@ -35,31 +38,24 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080
 const MangaDetail = () => {
   const { id } = useParams();
   const [manga, setManga] = useState<Manga | null>(null);
-  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [readerOpen, setReaderOpen] = useState(false);
-  const [selectedPdfUrl, setSelectedPdfUrl] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!id) return;
+
     axios.get(`${API_BASE_URL}/manga/${id}`)
       .then(res => setManga(res.data))
       .catch(err => console.error("Failed to fetch manga:", err));
-
-    // Load cover from IndexedDB
-    fileStorage.getCover(id).then(url => {
-      if (url) setCoverUrl(url);
-    });
   }, [id]);
 
-  const openChapter = async (chapterNumber: number) => {
-    if (!id) return;
-    const pdfUrl = await fileStorage.getChapter(id, chapterNumber);
-    if (pdfUrl) {
-      setSelectedPdfUrl(pdfUrl);
-      setReaderOpen(true);
-    } else {
-      alert("Chapter PDF not found locally. Please re-upload the chapter.");
+  const openChapter = (chapter: Chapter) => {
+    if (!chapter.imageUrls || chapter.imageUrls.length === 0) {
+      alert("Chapter images not available.");
+      return;
     }
+    setSelectedImages(chapter.imageUrls);
+    setReaderOpen(true);
   };
 
   if (!manga) {
@@ -80,7 +76,7 @@ const MangaDetail = () => {
 
       {/* Banner */}
       <div className="relative h-64 md:h-80 overflow-hidden">
-        {coverUrl && <img src={coverUrl} alt="" className="h-full w-full object-cover opacity-15 blur-2xl scale-125" />}
+        {manga.cover && <img src={manga.cover} alt="" className="h-full w-full object-cover opacity-15 blur-2xl scale-125" />}
         <div className="absolute inset-0" style={{ background: 'var(--gradient-dark)' }} />
       </div>
 
@@ -94,7 +90,7 @@ const MangaDetail = () => {
           {/* Cover */}
           <div className="flex-shrink-0">
             <img
-              src={coverUrl || "/placeholder.svg"}
+              src={manga.cover || "/placeholder.svg"}
               alt={manga.title}
               className="w-56 md:w-64 rounded-xl shadow-card border border-border/50"
             />
@@ -135,7 +131,7 @@ const MangaDetail = () => {
 
             <Button
               onClick={() => {
-                if (manga.chapters?.[0]) openChapter(manga.chapters[0].number);
+                if (manga.chapters?.[0]) openChapter(manga.chapters[0]);
               }}
               className="bg-gradient-orange shadow-glow hover:opacity-90 transition-opacity text-base px-8 py-3 h-auto"
             >
@@ -152,7 +148,7 @@ const MangaDetail = () => {
             {manga.chapters?.slice(0, 20).map((ch) => (
               <button
                 key={ch.id}
-                onClick={() => openChapter(ch.number)}
+                onClick={() => openChapter(ch)}
                 className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-card hover:bg-secondary hover:border-primary/30 transition-all group"
               >
                 <span className="text-sm font-medium text-foreground">
@@ -172,10 +168,10 @@ const MangaDetail = () => {
         </section>
       </main>
 
-      {/* PDF Reader */}
-      {readerOpen && selectedPdfUrl && (
-        <MangaReader
-          pdfUrl={selectedPdfUrl}
+      {/* Image Reader */}
+      {readerOpen && selectedImages && (
+        <ImageReader
+          images={selectedImages}
           title={manga.title}
           onClose={() => setReaderOpen(false)}
         />

@@ -1,118 +1,165 @@
 import { useState } from "react";
-import { Upload, FileText } from "lucide-react";
+import { Upload, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { fileStorage } from "@/services/fileStorage";
+import { uploadImagesToCloudinary } from "@/services/uploadToCloudinary";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 const UploadChapter = () => {
-  const [mangaId, setMangaId] = useState("");
-  const [chapterNumber, setChapterNumber] = useState(1);
-  const [chapterTitle, setChapterTitle] = useState("");
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+    const [mangaId, setMangaId] = useState("");
+    const [chapterNumber, setChapterNumber] = useState(1);
+    const [chapterTitle, setChapterTitle] = useState("");
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [submitting, setSubmitting] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
 
-  const handlePdfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type === "application/pdf") {
-      setPdfFile(file);
-    }
-  };
+    const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files ? Array.from(e.target.files) : [];
+        const images = files.filter(f => f.type.startsWith("image/"));
+        setImageFiles(images);
+    };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pdfFile || !mangaId.trim()) return;
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!mangaId.trim() || imageFiles.length === 0) return;
 
-    setSubmitting(true);
-    try {
-      // Save PDF to IndexedDB
-      await fileStorage.saveChapter(mangaId, chapterNumber, pdfFile);
+        setSubmitting(true);
+        setProgress(0);
+        setUploadedUrls([]);
 
-      // Send only metadata to backend
-      const res = await fetch(`${API_BASE_URL}/manga/${mangaId}/chapters`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chapterNumber,
-          title: chapterTitle,
-        }),
-      });
+        try {
+            const urls = await uploadImagesToCloudinary(imageFiles, chapterTitle, setProgress);
+            setUploadedUrls(urls);
 
-      if (!res.ok) throw new Error("Upload failed");
+            // Save to backend
+            const res = await fetch(`${API_BASE_URL}/manga/${mangaId}/chapters`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    number: chapterNumber,
+                    title: chapterTitle,
+                    imageUrls: urls, // ✅ new field
+                }),
+            });
 
-      alert("Chapter uploaded successfully!");
-      setPdfFile(null);
-      setChapterTitle("");
-      setChapterNumber((n) => n + 1);
-    } catch (err) {
-      alert("Upload failed. Make sure the backend is running.");
-      console.error(err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+            if (!res.ok) throw new Error("Backend save failed");
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-2xl mx-auto px-4 py-12">
-        <h1
-          className="text-3xl font-bold mb-8 text-primary"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          Upload Chapter
-        </h1>
+            alert("✅ Chapter uploaded successfully!");
+            setImageFiles([]);
+            setProgress(0);
+        } catch (err) {
+            console.error(err);
+            alert("❌ Upload failed");
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Manga ID */}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Manga ID</label>
-            <Input value={mangaId} onChange={(e) => setMangaId(e.target.value)} placeholder="Enter manga ID" required className="bg-card border-border" />
-            <p className="text-xs text-muted-foreground mt-1">The ID of the manga this chapter belongs to</p>
-          </div>
+    return (
+        <div className="min-h-screen bg-background text-foreground">
+            <div className="max-w-2xl mx-auto px-4 py-12">
+                <h1 className="text-3xl font-bold mb-8 text-primary">
+                    Upload Chapter
+                </h1>
 
-          {/* Chapter Number */}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter Number</label>
-            <Input type="number" value={chapterNumber} onChange={(e) => setChapterNumber(Number(e.target.value))} min={1} required className="bg-card border-border" />
-          </div>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Manga ID */}
+                    <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-2">Manga ID</label>
+                        <input
+                            type="text"
+                            value={mangaId}
+                            onChange={(e) => setMangaId(e.target.value)}
+                            placeholder="Enter manga ID"
+                            required
+                            className="w-full px-3 py-2 rounded-lg border bg-card border-border"
+                        />
+                    </div>
 
-          {/* Chapter Title */}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter Title</label>
-            <Input value={chapterTitle} onChange={(e) => setChapterTitle(e.target.value)} placeholder="e.g. The Beginning" className="bg-card border-border" />
-          </div>
+                    {/* Chapter Number */}
+                    <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter Number</label>
+                        <input
+                            type="number"
+                            value={chapterNumber}
+                            onChange={(e) => setChapterNumber(Number(e.target.value))}
+                            min={1}
+                            required
+                            className="w-full px-3 py-2 rounded-lg border bg-card border-border"
+                        />
+                    </div>
 
-          {/* PDF Upload */}
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter PDF</label>
-            {pdfFile ? (
-              <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
-                <FileText className="h-8 w-8 text-primary shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">{pdfFile.name}</p>
-                  <p className="text-xs text-muted-foreground">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                </div>
-                <button type="button" onClick={() => setPdfFile(null)} className="text-xs text-muted-foreground hover:text-destructive transition-colors">Remove</button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center h-32 rounded-lg border-2 border-dashed border-border bg-card hover:border-primary/50 cursor-pointer transition-colors">
-                <FileText className="h-8 w-8 text-muted-foreground mb-2" />
-                <span className="text-sm text-muted-foreground">Select PDF file</span>
-                <span className="text-xs text-muted-foreground mt-1">PDF saved locally in your browser</span>
-                <input type="file" accept=".pdf,application/pdf" onChange={handlePdfChange} className="hidden" />
-              </label>
-            )}
-          </div>
+                    {/* Chapter Title */}
+                    <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter Title</label>
+                        <input
+                            type="text"
+                            value={chapterTitle}
+                            onChange={(e) => setChapterTitle(e.target.value)}
+                            placeholder="e.g. The Beginning"
+                            className="w-full px-3 py-2 rounded-lg border bg-card border-border"
+                        />
+                    </div>
 
-          <Button type="submit" disabled={!pdfFile || !mangaId.trim() || submitting} className="w-full gap-2">
-            <Upload className="h-4 w-4" />
-            {submitting ? "Uploading..." : "Upload Chapter"}
-          </Button>
-        </form>
-      </div>
-    </div>
-  );
+                    {/* Image Upload */}
+                    <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-2">Chapter Images</label>
+                        <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={handleFilesChange}
+                            className="block w-full text-sm text-muted-foreground"
+                        />
+                        {imageFiles.length > 0 && (
+                            <div className="mt-2 grid grid-cols-4 gap-2">
+                                {imageFiles.map((file, idx) => (
+                                    <div key={idx} className="relative w-full h-24 border border-border rounded overflow-hidden">
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={file.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Progress Bar */}
+                    {submitting && (
+                        <div className="w-full bg-gray-200 h-2 rounded-full mt-2">
+                            <div
+                                className="bg-primary h-2 rounded-full transition-all"
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+                    )}
+
+                    {/* Uploaded URLs */}
+                    {uploadedUrls.length > 0 && (
+                        <div className="mt-4">
+                            <h2 className="text-sm font-medium text-muted-foreground mb-2">Uploaded Images:</h2>
+                            <div className="flex flex-wrap gap-2">
+                                {uploadedUrls.map((url, idx) => (
+                                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                                        <img src={url} alt={`Page ${idx + 1}`} className="w-20 h-28 object-cover rounded border" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Submit */}
+                    <Button type="submit" disabled={imageFiles.length === 0 || !mangaId.trim() || submitting} className="w-full gap-2">
+                        <Upload className="h-4 w-4" />
+                        {submitting ? "Uploading..." : "Upload Chapter"}
+                    </Button>
+                </form>
+            </div>
+        </div>
+    );
 };
 
 export default UploadChapter;

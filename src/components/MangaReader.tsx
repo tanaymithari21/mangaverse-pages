@@ -1,26 +1,22 @@
 import { useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2 } from "lucide-react";
-import { Document, Page, pdfjs } from "react-pdf";
 
-// ✅ VITE SAFE FIX
-import workerSrc from "pdfjs-dist/build/pdf.worker.min?url";
-
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 interface MangaReaderProps {
-  pdfUrl: string; // 👈 instead of pages
+  imageUrls: string[]; // ✅ array of image URLs
   title: string;
   onClose: () => void;
 }
 
-const MangaReader = ({ pdfUrl, title, onClose }: MangaReaderProps) => {
-  const [currentPage, setCurrentPage] = useState(1); // PDF starts from 1
-  const [numPages, setNumPages] = useState<number>(0);
+const MangaReader = ({ imageUrls, title, onClose }: MangaReaderProps) => {
+  const [currentPage, setCurrentPage] = useState(0); // 0-indexed
   const [fullscreen, setFullscreen] = useState(false);
 
+  const numPages = imageUrls.length;
+
   const goToPage = useCallback((direction: "next" | "prev") => {
-    if (direction === "next" && currentPage >= numPages) return;
-    if (direction === "prev" && currentPage <= 1) return;
-    setCurrentPage((p) => direction === "next" ? p + 1 : p - 1);
+    if (direction === "next" && currentPage >= numPages - 1) return;
+    if (direction === "prev" && currentPage <= 0) return;
+    setCurrentPage((p) => (direction === "next" ? p + 1 : p - 1));
   }, [currentPage, numPages]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -48,7 +44,7 @@ const MangaReader = ({ pdfUrl, title, onClose }: MangaReaderProps) => {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            Page {currentPage} / {numPages}
+            Page {currentPage + 1} / {numPages}
           </span>
           <button
             onClick={() => setFullscreen(!fullscreen)}
@@ -63,29 +59,23 @@ const MangaReader = ({ pdfUrl, title, onClose }: MangaReaderProps) => {
       <div className="flex-1 flex items-center justify-center relative overflow-hidden" style={{ background: 'var(--gradient-dark)' }}>
         <button
           onClick={() => goToPage("prev")}
-          disabled={currentPage === 1}
+          disabled={currentPage === 0}
           className="absolute left-4 z-10 p-2 rounded-full bg-card/60 backdrop-blur-sm border border-border text-foreground hover:bg-card transition-all disabled:opacity-20 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
 
         <div className="relative w-full max-w-2xl mx-auto flex items-center justify-center p-4">
-          <Document
-            file={pdfUrl}
-            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-          >
-            <Page
-              pageNumber={currentPage}
-              width={500} // 👈 key fix
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
-          </Document>
+          <img
+            src={imageUrls[currentPage]}
+            alt={`Page ${currentPage + 1}`}
+            className="max-w-full max-h-[80vh] object-contain rounded shadow-lg"
+          />
         </div>
 
         <button
           onClick={() => goToPage("next")}
-          disabled={currentPage >= numPages}
+          disabled={currentPage >= numPages - 1}
           className="absolute right-4 z-10 p-2 rounded-full bg-card/60 backdrop-blur-sm border border-border text-foreground hover:bg-card transition-all disabled:opacity-20 disabled:cursor-not-allowed"
         >
           <ChevronRight className="h-6 w-6" />
@@ -96,7 +86,7 @@ const MangaReader = ({ pdfUrl, title, onClose }: MangaReaderProps) => {
       <div className="h-1 bg-secondary">
         <div
           className="h-full bg-gradient-orange transition-all duration-300"
-          style={{ width: `${numPages ? (currentPage / numPages) * 100 : 0}%` }}
+          style={{ width: `${numPages ? ((currentPage + 1) / numPages) * 100 : 0}%` }}
         />
       </div>
     </div>

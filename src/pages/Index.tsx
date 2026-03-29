@@ -6,7 +6,7 @@ import SearchBar from "@/components/SearchBar";
 import GenreFilter from "@/components/GenreFilter";
 import MangaCard from "@/components/MangaCard";
 import FeaturedManga from "@/components/FeaturedManga";
-import { fileStorage } from "@/services/fileStorage";
+// import { uploadToCloudinary } from "@/services/uploadToCloudinary";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 
@@ -24,15 +24,13 @@ const Index = () => {
       .then(async (res) => {
         const list = res.data;
 
-        // Resolve covers from IndexedDB
-        const withCovers = await Promise.all(
-          list.map(async (m: any) => {
-            const localCover = await fileStorage.getCover(String(m.id));
-            return { ...m, cover: localCover || m.cover || "/placeholder.svg" };
-          })
+        setMangaList(
+          list.map((m: any) => ({
+            ...m,
+            cover: m.cover || "/placeholder.svg",
+          }))
         );
 
-        setMangaList(withCovers);
         setLoading(false);
 
         let all: string[] = [];
