@@ -23,6 +23,176 @@ const btnBase: React.CSSProperties = {
     whiteSpace: "nowrap",
 };
 
+// ── Page jump input ──────────────────────────────────────────────
+const PageInput: React.FC<{
+    currentIndex: number;
+    total: number;
+    hasPageB: boolean;
+    pageB: number;
+    goTo: (i: number) => void;
+}> = ({ currentIndex, total, hasPageB, pageB, goTo }) => {
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState("");
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const startEdit = () => {
+        setDraft(String(currentIndex + 1));
+        setEditing(true);
+        setTimeout(() => inputRef.current?.select(), 0);
+    };
+
+    const commit = () => {
+        const n = parseInt(draft, 10);
+        if (!isNaN(n) && n >= 1 && n <= total) goTo(n - 1);
+        setEditing(false);
+    };
+
+    const onKey = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") commit();
+        if (e.key === "Escape") setEditing(false);
+        e.stopPropagation(); // prevent reader keyboard shortcuts
+    };
+
+    if (editing) return (
+        <span style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "monospace", fontSize: 11, flexShrink: 0 }}>
+            <input
+                ref={inputRef}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={onKey}
+                style={{
+                    width: 40, background: "#1a1a1a", border: "1px solid #e05c2a",
+                    borderRadius: 4, color: "#fff", fontSize: 11, fontFamily: "monospace",
+                    textAlign: "center", padding: "1px 4px", outline: "none",
+                }}
+            />
+            <span style={{ color: "#444" }}>/ {String(total).padStart(2, "0")}</span>
+        </span>
+    );
+
+    return (
+        <span
+            onClick={startEdit}
+            title="Click to jump to page"
+            style={{
+                color: "#444", fontSize: 11, fontFamily: "monospace", flexShrink: 0,
+                cursor: "text", borderBottom: "1px dotted #333", paddingBottom: 1,
+                transition: "color 0.15s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = "#aaa")}
+            onMouseLeave={e => (e.currentTarget.style.color = "#444")}
+        >
+            {String(currentIndex + 1).padStart(2, "0")}
+            {hasPageB ? `–${String(pageB + 1).padStart(2, "0")}` : ""}
+            {" / "}{String(total).padStart(2, "0")}
+        </span>
+    );
+};
+
+// ── Draggable progress bar ────────────────────────────────────────
+const DraggableBar: React.FC<{
+    progress: number;
+    rtl: boolean;
+    images: string[];
+    currentIndex: number;
+    goTo: (i: number) => void;
+}> = ({ progress, rtl, images, currentIndex, goTo }) => {
+    const barRef = useRef<HTMLDivElement>(null);
+    const [dragging, setDragging] = useState(false);
+    const [hoverPage, setHoverPage] = useState<number | null>(null);
+
+    const posToPage = (clientX: number): number => {
+        const rect = barRef.current!.getBoundingClientRect();
+        let ratio = (clientX - rect.left) / rect.width;
+        ratio = Math.max(0, Math.min(1, ratio));
+        if (rtl) ratio = 1 - ratio;
+        return Math.round(ratio * (images.length - 1));
+    };
+
+    const onMouseDown = (e: React.MouseEvent) => {
+        e.preventDefault();
+        setDragging(true);
+        goTo(posToPage(e.clientX));
+
+        const onMove = (ev: MouseEvent) => goTo(posToPage(ev.clientX));
+        const onUp   = () => { setDragging(false); window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", onUp);
+    };
+
+    const onMouseMove = (e: React.MouseEvent) => setHoverPage(posToPage(e.clientX));
+    const onMouseLeave = () => setHoverPage(null);
+
+    const fillPct = rtl ? 100 - progress : progress;
+
+    return (
+        <div
+            ref={barRef}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseLeave={onMouseLeave}
+            style={{
+                position: "relative", height: dragging ? 6 : 4,
+                background: "#1a1a1a", flexShrink: 0,
+                cursor: "pointer", transition: "height 0.15s",
+            }}
+        >
+            {/* Filled portion */}
+            <div style={{
+                position: "absolute",
+                top: 0, bottom: 0,
+                left: rtl ? `${100 - progress}%` : 0,
+                width: `${progress}%`,
+                background: "linear-gradient(90deg, #e05c2a, #f0943a)",
+                pointerEvents: "none",
+            }} />
+
+            {/* Thumb handle */}
+            <div style={{
+                position: "absolute",
+                top: "50%",
+                left: rtl ? `${100 - progress}%` : `${progress}%`,
+                transform: "translate(-50%, -50%)",
+                width: dragging ? 14 : 10,
+                height: dragging ? 14 : 10,
+                borderRadius: "50%",
+                background: "#e05c2a",
+                border: "2px solid #f0943a",
+                pointerEvents: "none",
+                transition: "width 0.15s, height 0.15s",
+                boxShadow: "0 0 6px rgba(224,92,42,0.6)",
+                zIndex: 3,
+            }} />
+
+            {/* Hover tooltip */}
+            {hoverPage !== null && (
+                <div style={{
+                    position: "absolute",
+                    bottom: 10,
+                    left: rtl
+                        ? `${100 - (hoverPage / (images.length - 1)) * 100}%`
+                        : `${(hoverPage / (images.length - 1)) * 100}%`,
+                    transform: "translateX(-50%)",
+                    background: "#1a1a1a",
+                    border: "1px solid #2a2a2a",
+                    borderRadius: 4,
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    color: "#aaa",
+                    fontFamily: "monospace",
+                    pointerEvents: "none",
+                    whiteSpace: "nowrap",
+                    zIndex: 10,
+                }}>
+                    p.{hoverPage + 1}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// ── Main reader ───────────────────────────────────────────────────
 const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loaded, setLoaded] = useState<boolean[]>(new Array(images.length).fill(false));
@@ -137,11 +307,13 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                             {title}
                         </span>
                     )}
-                    <span style={{ color: "#444", fontSize: 11, fontFamily: "monospace", flexShrink: 0 }}>
-                        {String(pageA + 1).padStart(2, "0")}
-                        {hasPageB ? `–${String(pageB + 1).padStart(2, "0")}` : ""}
-                        {" / "}{String(images.length).padStart(2, "0")}
-                    </span>
+                    <PageInput
+                        currentIndex={currentIndex}
+                        total={images.length}
+                        hasPageB={hasPageB}
+                        pageB={pageB}
+                        goTo={goTo}
+                    />
                     {/* Reading direction indicator — always visible, changes with mode */}
                     <span style={{
                         fontSize: 10,
@@ -205,11 +377,11 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                 {/* Click zones */}
                 <div onClick={onClickLeft} style={{
                     position: "absolute", left: 0, top: 0, bottom: 0, width: "28%",
-                    zIndex: 10, cursor: (rtl ? isLast : isFirst) ? "default" : "w-resize",
+                    zIndex: 10, cursor: "default",
                 }} />
                 <div onClick={onClickRight} style={{
                     position: "absolute", right: 0, top: 0, bottom: 0, width: "28%",
-                    zIndex: 10, cursor: (rtl ? isFirst : isLast) ? "default" : "e-resize",
+                    zIndex: 10, cursor: "default",
                 }} />
 
 
@@ -252,35 +424,14 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                 </span>
             </div>
 
-            {/* ── Progress bar ── */}
-            <div style={{ position: "relative", height: 3, background: "#1a1a1a", flexShrink: 0 }}>
-                <div style={{
-                    height: "100%", width: `${progress}%`,
-                    background: "linear-gradient(90deg, #e05c2a, #f0943a)",
-                    transition: "width 0.3s ease",
-                    borderRadius: rtl ? "2px 0 0 2px" : "0 2px 2px 0",
-                    // In RTL: anchor bar to the right side
-                    marginLeft: rtl ? "auto" : undefined,
-                    position: rtl ? "absolute" : undefined,
-                    right: rtl ? 0 : undefined,
-                    top: rtl ? 0 : undefined,
-                    bottom: rtl ? 0 : undefined,
-                }} />
-                {images.map((_, i) => (
-                    <button key={i} onClick={() => goTo(i)} title={`Page ${i + 1}`} style={{
-                        position: "absolute", top: "50%",
-                        // In RTL: dot positions are mirrored
-                        left: rtl
-                            ? `${100 - (i / (images.length - 1)) * 100}%`
-                            : `${(i / (images.length - 1)) * 100}%`,
-                        transform: "translate(-50%, -50%)",
-                        width: i === currentIndex ? 8 : 4, height: i === currentIndex ? 8 : 4,
-                        borderRadius: "50%",
-                        background: i <= currentIndex ? "#f0943a" : "#333",
-                        border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s", zIndex: 2,
-                    }} />
-                ))}
-            </div>
+            {/* ── Progress bar (draggable, no dots) ── */}
+            <DraggableBar
+                progress={progress}
+                rtl={rtl}
+                images={images}
+                currentIndex={currentIndex}
+                goTo={goTo}
+            />
 
             {/* ── Bottom nav ── */}
             <div style={{
