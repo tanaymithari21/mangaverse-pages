@@ -1,73 +1,75 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import { BookOpen, TrendingUp, Sparkles } from "lucide-react";
+import { BookOpen, TrendingUp, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import GenreFilter from "@/components/GenreFilter";
 import MangaCard from "@/components/MangaCard";
 import FeaturedManga from "@/components/FeaturedManga";
-// import { uploadToCloudinary } from "@/services/uploadToCloudinary";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const PAGE_SIZE = 10;
 
 const Index = () => {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [mangaList, setMangaList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [allGenres, setAllGenres] = useState<string[]>([]);
+  const [allGenres, setAllGenres] = useState<string[]>(["All"]);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
-  // Fetch manga from backend, then resolve local covers
+  // Debounce search input — wait 400ms after user stops typing
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/manga`)
-      .then(async (res) => {
-        const list = res.data;
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0); // reset to page 1 on new search
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
-        setMangaList(
-          list.map((m: any) => ({
-            ...m,
-            cover: m.cover || "/placeholder.svg",
-          }))
-        );
+  // Reset page when genre changes
+  useEffect(() => {
+    setPage(0);
+  }, [selectedGenre]);
 
-        setLoading(false);
-
-        let all: string[] = [];
-        res.data.forEach((m: any) => {
-          if (m.genres && Array.isArray(m.genres)) {
-            all = all.concat(m.genres);
-          }
-        });
-        const uniqueGenres = [...new Set(all)];
-        setAllGenres(["All", ...uniqueGenres]);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch manga:", err);
-        setLoading(false);
-      });
+  // Fetch genres from DB via API
+  useEffect(() => {
+    axios.get(`${API_BASE_URL}/api/genres`)
+      .then(res => setAllGenres(["All", ...res.data]))
+      .catch(err => console.error("Failed to fetch genres:", err));
   }, []);
 
-  const filtered = useMemo(() => {
-    return mangaList.filter((m) => {
-      const matchesSearch =
-        m.title?.toLowerCase().includes(search.toLowerCase()) ||
-        m.author?.toLowerCase().includes(search.toLowerCase());
-      const matchesGenre =
-        selectedGenre === "All" || m.genres?.includes(selectedGenre);
-      return matchesSearch && matchesGenre;
-    });
-  }, [search, selectedGenre, mangaList]);
+  // Fetch paginated manga whenever search/genre/page changes
+  useEffect(() => {
+    setLoading(true);
 
-  const featured = filtered.length > 0 ? filtered[0] : null;
+    const params: Record<string, any> = {
+      page,
+      size: PAGE_SIZE,
+    };
+    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+    if (selectedGenre !== "All") params.genre = selectedGenre;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading manga...</p>
-      </div>
-    );
-  }
+    axios.get(`${API_BASE_URL}/api/manga`, { params })
+      .then(res => {
+        const { content, totalPages, totalElements } = res.data;
+        setMangaList(content.map((m: any) => ({
+          ...m,
+          cover: m.cover || "/placeholder.svg",
+        })));
+        setTotalPages(totalPages);
+        setTotalElements(totalElements);
+      })
+      .catch(err => console.error("Failed to fetch manga:", err))
+      .finally(() => setLoading(false));
+  }, [debouncedSearch, selectedGenre, page]);
+
+  const featured = page === 0 && !debouncedSearch && selectedGenre === "All" && mangaList.length > 0
+    ? mangaList[0]
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,8 +94,8 @@ const Index = () => {
           <GenreFilter selected={selectedGenre} onChange={setSelectedGenre} options={allGenres} />
         </section>
 
-        {/* Featured */}
-        {!search && selectedGenre === "All" && featured && (
+        {/* Featured — only on first page with no filters */}
+        {featured && (
           <section className="space-y-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -109,20 +111,29 @@ const Index = () => {
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
               <h2 className="text-xl font-bold">
-                {search ? "Results" : selectedGenre === "All" ? "Popular Manga" : selectedGenre}
+                {debouncedSearch ? "Results" : selectedGenre === "All" ? "Popular Manga" : selectedGenre}
               </h2>
             </div>
-            <span className="text-sm text-muted-foreground">{filtered.length} titles</span>
+            <span className="text-sm text-muted-foreground">
+              {totalElements} title{totalElements !== 1 ? "s" : ""}
+            </span>
           </div>
 
-          {filtered.length > 0 ? (
+          {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {filtered.map((manga) => (
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <div key={i} className="aspect-[3/4] rounded-xl bg-secondary animate-pulse" />
+              ))}
+            </div>
+          ) : mangaList.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {mangaList.map((manga) => (
                 <MangaCard
                   key={manga.id}
                   manga={{
                     ...manga,
                     genres: manga.genres || [],
+                    chaptersCount: manga.chaptersCount ?? 0,
                     chapters: manga.chapters || [],
                   }}
                 />
@@ -132,6 +143,31 @@ const Index = () => {
             <div className="text-center py-20 space-y-3">
               <BookOpen className="h-12 w-12 mx-auto text-muted-foreground" />
               <p className="text-muted-foreground">No manga found. Try a different search or genre.</p>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 pt-4">
+              <button
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <ChevronLeft className="h-4 w-4" /> Prev
+              </button>
+
+              <span className="text-sm text-muted-foreground">
+                Page {page + 1} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+                className="flex items-center gap-1 px-4 py-2 rounded-lg border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           )}
         </section>

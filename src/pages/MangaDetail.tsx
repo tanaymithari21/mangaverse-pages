@@ -3,21 +3,14 @@ import { useState, useEffect } from "react";
 import { Star, BookOpen, ArrowLeft, Clock, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
-// NEW: Image-based reader
 import ImageReader from "@/components/ImageReader";
 import axios from "axios";
-import { uploadToCloudinary } from "@/services/uploadToCloudinary";
 
 interface Chapter {
   id: number;
   number: number;
   title: string;
   imageUrls?: string[]; // array of images for the chapter
-}
-
-interface Genre {
-  id: number;
-  name: string;
 }
 
 interface Manga {
@@ -29,11 +22,12 @@ interface Manga {
   author: string;
   year: number;
   chapters: Chapter[];
-  genres: Genre[];
-  cover: string; // Cloudinary URL
+  genres: string[]; // Fix: backend sends string[], not Genre[]
+  cover: string;
+  chaptersCount?: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 const MangaDetail = () => {
   const { id } = useParams();
@@ -44,7 +38,7 @@ const MangaDetail = () => {
   useEffect(() => {
     if (!id) return;
 
-    axios.get(`${API_BASE_URL}/manga/${id}`)
+    axios.get(`${API_BASE_URL}/api/manga/${id}`)
       .then(res => setManga(res.data))
       .catch(err => console.error("Failed to fetch manga:", err));
   }, [id]);
@@ -114,7 +108,7 @@ const MangaDetail = () => {
                 <span className="font-bold text-foreground">{manga.rating}</span>
               </div>
               <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <Clock className="h-4 w-4" />{manga.chapters?.length ?? 0} Chapters
+                <Clock className="h-4 w-4" />{manga.chaptersCount ?? manga.chapters?.length ?? 0} Chapters
               </span>
               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${manga.status === "Ongoing" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"}`}>
                 {manga.status}
@@ -125,7 +119,7 @@ const MangaDetail = () => {
 
             <div className="flex flex-wrap gap-2">
               {manga.genres?.map(g => (
-                <span key={g.id} className="genre-chip text-sm">{g.name}</span>
+                <span key={g} className="genre-chip text-sm">{g}</span>
               ))}
             </div>
 

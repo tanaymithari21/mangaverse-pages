@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, Image } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadImagesToCloudinary } from "@/services/uploadToCloudinary";
 
@@ -32,25 +32,30 @@ const UploadChapter = () => {
             const urls = await uploadImagesToCloudinary(imageFiles, chapterTitle, setProgress);
             setUploadedUrls(urls);
 
-            // Save to backend
-            const res = await fetch(`${API_BASE_URL}/manga/${mangaId}/chapters`, {
+            // Fix: was missing /api prefix — chapters were never saved
+            const res = await fetch(`${API_BASE_URL}/api/manga/${mangaId}/chapters`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     number: chapterNumber,
                     title: chapterTitle,
-                    imageUrls: urls, // ✅ new field
+                    imageUrls: urls,
                 }),
             });
 
-            if (!res.ok) throw new Error("Backend save failed");
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(`Backend save failed: ${errorText}`);
+            }
 
             alert("✅ Chapter uploaded successfully!");
             setImageFiles([]);
+            setChapterTitle("");
             setProgress(0);
+            setUploadedUrls([]);
         } catch (err) {
             console.error(err);
-            alert("❌ Upload failed");
+            alert("❌ Upload failed: " + (err instanceof Error ? err.message : String(err)));
         } finally {
             setSubmitting(false);
         }
@@ -137,7 +142,7 @@ const UploadChapter = () => {
                         </div>
                     )}
 
-                    {/* Uploaded URLs */}
+                    {/* Uploaded URLs preview */}
                     {uploadedUrls.length > 0 && (
                         <div className="mt-4">
                             <h2 className="text-sm font-medium text-muted-foreground mb-2">Uploaded Images:</h2>
@@ -152,9 +157,13 @@ const UploadChapter = () => {
                     )}
 
                     {/* Submit */}
-                    <Button type="submit" disabled={imageFiles.length === 0 || !mangaId.trim() || submitting} className="w-full gap-2">
+                    <Button
+                        type="submit"
+                        disabled={imageFiles.length === 0 || !mangaId.trim() || submitting}
+                        className="w-full gap-2"
+                    >
                         <Upload className="h-4 w-4" />
-                        {submitting ? "Uploading..." : "Upload Chapter"}
+                        {submitting ? `Uploading... ${progress.toFixed(0)}%` : "Upload Chapter"}
                     </Button>
                 </form>
             </div>

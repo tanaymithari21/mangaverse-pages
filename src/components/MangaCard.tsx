@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Manga } from "@/data/manga";
 
 interface MangaCardProps {
-  manga: Manga;
+  manga: Manga & { chaptersCount?: number };
 }
 
 const MangaCard = ({ manga }: MangaCardProps) => {
@@ -40,7 +40,7 @@ const MangaCard = ({ manga }: MangaCardProps) => {
             <Star className="h-3.5 w-3.5 fill-primary text-primary" />
             <span className="text-xs text-muted-foreground">{manga.rating}</span>
           </div>
-          <span className="text-xs text-muted-foreground">Ch. {manga.chapters.length}</span>
+          <span className="text-xs text-muted-foreground">Ch. {manga.chaptersCount ?? manga.chapters?.length ?? 0}</span>
         </div>
         <div className="flex flex-wrap gap-1">
           {manga.genres.slice(0, 2).map((g) => (
