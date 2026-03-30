@@ -58,7 +58,7 @@ const Index = () => {
         const { content, totalPages, totalElements } = res.data;
         setMangaList(content.map((m: any) => ({
           ...m,
-          cover: m.cover || "/placeholder.svg",
+          cover: m.cover
         })));
         setTotalPages(totalPages);
         setTotalElements(totalElements);
