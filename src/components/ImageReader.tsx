@@ -293,16 +293,18 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
             {/* ── Top bar ── */}
             <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "10px 16px", borderBottom: "1px solid #1e1e1e",
-                background: "#0f0f0f", flexShrink: 0, gap: 8,
+                padding: "8px 12px", borderBottom: "1px solid #1e1e1e",
+                background: "#0f0f0f", flexShrink: 0, gap: 6,
+                minHeight: 44,
             }}>
-                {/* Left: icon + title + page */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, overflow: "hidden" }}>
-                    <BookOpen size={15} color="#555" style={{ flexShrink: 0 }} />
+                {/* Left: icon + title + page counter + direction badge */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
+                    <BookOpen size={14} color="#555" style={{ flexShrink: 0 }} />
                     {title && (
                         <span style={{
-                            color: "#bbb", fontSize: 12, letterSpacing: "0.04em",
+                            color: "#bbb", fontSize: 11, letterSpacing: "0.03em",
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            maxWidth: "20vw",
                         }}>
                             {title}
                         </span>
@@ -314,53 +316,68 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                         pageB={pageB}
                         goTo={goTo}
                     />
-                    {/* Reading direction indicator — always visible, changes with mode */}
+                    {/* Direction badge — abbreviated on mobile */}
                     <span style={{
-                        fontSize: 10,
-                        color: rtl ? "#e05c2a" : "#666",
+                        fontSize: 9,
+                        color: rtl ? "#e05c2a" : "#555",
                         fontFamily: "monospace",
-                        letterSpacing: "0.07em",
+                        letterSpacing: "0.05em",
                         flexShrink: 0,
-                        border: `1px solid ${rtl ? "#3a1a0a" : "#222"}`,
-                        borderRadius: 4,
-                        padding: "2px 7px",
+                        border: `1px solid ${rtl ? "#3a1a0a" : "#252525"}`,
+                        borderRadius: 3,
+                        padding: "1px 5px",
                         background: rtl ? "#1a0d06" : "transparent",
                         transition: "all 0.2s",
+                        whiteSpace: "nowrap",
                     }}>
-                        {rtl ? "← Japanese mode · right to left" : "Western mode · left to right →"}
+                        {rtl ? "←JP" : "EN→"}
                     </span>
                 </div>
 
-                {/* Right: toggles + close */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                {/* Right: compact toggles + close */}
+                <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
 
-                    {/* 1-page / 2-page */}
+                    {/* 1P / 2P toggle */}
                     <button
                         onClick={() => setTwoPage(v => !v)}
-                        title={twoPage ? "Single page mode" : "Two-page spread"}
-                        style={{ ...btnBase, borderColor: twoPage ? "#e05c2a" : "#2a2a2a", color: twoPage ? "#e05c2a" : "#888" }}
+                        title={twoPage ? "Single page" : "Two-page spread"}
+                        style={{
+                            ...btnBase,
+                            padding: "3px 8px",
+                            fontSize: 10,
+                            borderColor: twoPage ? "#e05c2a" : "#2a2a2a",
+                            color: twoPage ? "#e05c2a" : "#666",
+                        }}
                     >
-                        <BookMarked size={12} />
-                        {twoPage ? "2-Page" : "1-Page"}
+                        <BookMarked size={11} />
+                        <span>{twoPage ? "2P" : "1P"}</span>
                     </button>
 
-                    {/* LTR / RTL */}
+                    {/* RTL / LTR toggle */}
                     <button
                         onClick={() => setRtl(v => !v)}
-                        title={rtl ? "Switch to Left→Right" : "Switch to Right→Left (Japanese)"}
-                        style={{ ...btnBase, borderColor: rtl ? "#e05c2a" : "#2a2a2a", color: rtl ? "#e05c2a" : "#888" }}
+                        title={rtl ? "Switch to LTR" : "Switch to RTL (Japanese)"}
+                        style={{
+                            ...btnBase,
+                            padding: "3px 8px",
+                            fontSize: 10,
+                            borderColor: rtl ? "#e05c2a" : "#2a2a2a",
+                            color: rtl ? "#e05c2a" : "#666",
+                        }}
                     >
-                        {rtl ? "← R→L" : "L→R →"}
+                        {rtl ? "←RL" : "LR→"}
                     </button>
 
                     {/* Close */}
                     <button
                         onClick={onClose}
-                        style={btnBase}
+                        title="Close reader"
+                        style={{ ...btnBase, padding: "3px 8px", fontSize: 10 }}
                         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = "#fff"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#555"; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = "#888"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#2a2a2a"; }}
                     >
-                        <X size={13} /> Close
+                        <X size={12} />
+                        <span>Close</span>
                     </button>
                 </div>
             </div>

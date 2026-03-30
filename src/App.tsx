@@ -7,9 +7,11 @@ import Index from "./pages/Index.tsx";
 import MangaDetail from "./pages/MangaDetail.tsx";
 import UploadManga from "./pages/UploadManga.tsx";
 import EditManga from "./pages/EditManga.tsx";
+// import EditMangaSelect from "./pages/EditMangaSelect.tsx";
 import UploadChapter from "./pages/UploadChapter.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import AdminMenu from "./pages/AdminMenu.tsx";
 import GenreManager from "./pages/GenreManager.tsx";
+import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
@@ -25,7 +27,9 @@ const App = () => (
           <Route path="/upload-manga" element={<UploadManga />} />
           <Route path="/upload-chapter" element={<UploadChapter />} />
           <Route path="/edit-manga/:id" element={<EditManga />} />
-          <Route path="/genre-manager" element={<GenreManager />} />
+          {/* <Route path="/edit-manga-select" element={<EditMangaSelect />} /> */}
+          <Route path="/genres" element={<GenreManager />} />
+          <Route path="/menu" element={<AdminMenu />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
