@@ -38,7 +38,11 @@ const Index = () => {
   // Fetch genres from DB via API
   useEffect(() => {
     axios.get(`${API_BASE_URL}/api/genres`)
-      .then(res => setAllGenres(["All", ...res.data]))
+      .then(res => {
+        // API returns [{id, name}, ...] — extract just the name strings
+        const names = res.data.map((g: any) => typeof g === "string" ? g : g.name);
+        setAllGenres(["All", ...names]);
+      })
       .catch(err => console.error("Failed to fetch genres:", err));
   }, []);
 
