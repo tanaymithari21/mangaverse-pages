@@ -195,15 +195,17 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const step = twoPage ? 2 : 1;
     const currentVPage = virtualPages[vIndex];
     const isAdPage = currentVPage?.type === "ad";
 
     // Real page index for display/counter (only counts real pages)
     const currentRealIndex = currentVPage?.type === "page" ? currentVPage.realIndex : -1;
 
-    // For 2-page: find next virtual page
-    const nextVPage = virtualPages[vIndex + 1];
+    // ── 2-page partner resolution ────────────────────────────────────
+    // In 2-page mode the RIGHT slot is vIndex+1, BUT only if it's a real page
+    // (not an ad). If vIndex+1 is an ad, this spread has no partner — don't
+    // show a half-empty layout, just render the single page centred.
+    const nextVPage = twoPage && !isAdPage ? virtualPages[vIndex + 1] : undefined;
     const hasPageB = twoPage && !isAdPage && nextVPage?.type === "page";
     const pageBReal = hasPageB && nextVPage?.type === "page" ? nextVPage.realIndex : -1;
 
@@ -212,7 +214,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         : 100;
 
     const isFirst = vIndex === 0;
-    const isLast = vIndex >= virtualPages.length - step;
+    const isLast = vIndex >= virtualPages.length - 1;
 
     const goToV = (idx: number) => {
         const clamped = Math.max(0, Math.min(virtualPages.length - 1, idx));
@@ -226,8 +228,44 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         if (vi >= 0) goToV(vi);
     };
 
-    const goNext = () => goToV(vIndex + step);
-    const goPrev = () => goToV(vIndex - step);
+    // ── Smart navigation: skip over ad slots, keep 2-page pairs aligned ──
+    // In 2-page mode we advance by 2 real pages but must account for ad slots
+    // inserted into the virtual list. We always land on a real page (never an ad).
+    const goNext = () => {
+        if (isAdPage) {
+            // From an ad, always move forward by 1 to get to the next real page
+            goToV(vIndex + 1);
+            return;
+        }
+        if (!twoPage) {
+            goToV(vIndex + 1);
+            return;
+        }
+        // 2-page mode: consume this spread (1 or 2 virtual slots depending on
+        // whether vIndex+1 is a real page or an ad), then skip any ad that follows
+        let next = vIndex + (hasPageB ? 2 : 1);
+        // If we land on an ad, skip past it so we start on a real page
+        if (virtualPages[next]?.type === "ad") next += 1;
+        goToV(next);
+    };
+
+    const goPrev = () => {
+        if (isAdPage) {
+            goToV(vIndex - 1);
+            return;
+        }
+        if (!twoPage) {
+            goToV(vIndex - 1);
+            return;
+        }
+        // Step back 1 virtual slot, then skip any ad before us
+        let prev = vIndex - 1;
+        if (virtualPages[prev]?.type === "ad") prev -= 1;
+        // Now align: if the page before this one is also a real page (i.e. this
+        // would be its pair), step back one more so the pair starts correctly
+        if (prev > 0 && virtualPages[prev - 1]?.type === "page") prev -= 1;
+        goToV(Math.max(0, prev));
+    };
 
     const onClickLeft  = () => rtl ? goNext() : goPrev();
     const onClickRight = () => rtl ? goPrev() : goNext();
@@ -256,11 +294,15 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
 
     const renderRealPage = (realIdx: number, side: "left" | "right") => {
         if (realIdx < 0 || realIdx >= images.length) return null;
+        // In 2-page mode with a real partner, pages butt up to the centre gutter.
+        // When there's no partner (lone page near an ad boundary), centre it.
+        const isPaired = twoPage && hasPageB;
         return (
             <div style={{
-                flex: 1, height: "100%",
+                flex: isPaired ? 1 : "unset",
+                height: "100%",
                 display: "flex", alignItems: "center",
-                justifyContent: twoPage ? (side === "left" ? "flex-end" : "flex-start") : "center",
+                justifyContent: isPaired ? (side === "left" ? "flex-end" : "flex-start") : "center",
                 minWidth: 0,
             }}>
                 {!loaded[realIdx] && (
@@ -283,8 +325,8 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                         maxWidth: "100%", maxHeight: "100%",
                         width: "auto", height: "auto",
                         objectFit: "contain",
-                        borderRadius: twoPage ? 0 : 2,
-                        boxShadow: twoPage ? "none" : "0 8px 60px rgba(0,0,0,0.8)",
+                        borderRadius: isPaired ? 0 : 2,
+                        boxShadow: isPaired ? "none" : "0 8px 60px rgba(0,0,0,0.8)",
                     }}
                 />
             </div>
@@ -397,9 +439,12 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                     {isAdPage ? (
                         // Ad page — full viewer area
                         <AdCard variant="reader" />
-                    ) : twoPage ? (
+                    ) : twoPage && hasPageB ? (
+                        // True 2-page spread
                         <>{renderRealPage(leftRealPage, "left")}{renderRealPage(rightRealPage, "right")}</>
                     ) : (
+                        // Single page — either 1-page mode, or 2-page mode but
+                        // next slot is an ad (lone page), render centred
                         renderRealPage(currentRealIndex, "left")
                     )}
                 </div>
