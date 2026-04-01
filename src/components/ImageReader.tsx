@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, ChevronLeft, ChevronRight, BookOpen, BookMarked } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, BookOpen, BookMarked, Maximize2, Minimize2 } from "lucide-react";
 import AdCard from "@/components/AdCard";
 
 interface ImageReaderProps {
@@ -25,7 +25,6 @@ const btnBase: React.CSSProperties = {
 };
 
 // ── Build virtual page list: insert AD slot every 8 real pages ────
-// Returns array of {type: "page", realIndex} | {type: "ad", adIndex}
 type VirtualPage = { type: "page"; realIndex: number } | { type: "ad"; adIndex: number };
 
 const buildVirtualPages = (totalImages: number): VirtualPage[] => {
@@ -33,7 +32,6 @@ const buildVirtualPages = (totalImages: number): VirtualPage[] => {
     let adCount = 0;
     for (let i = 0; i < totalImages; i++) {
         result.push({ type: "page", realIndex: i });
-        // After every 8th real page (and not at the very end), insert an ad
         if ((i + 1) % 8 === 0 && i + 1 < totalImages) {
             result.push({ type: "ad", adIndex: adCount++ });
         }
@@ -184,29 +182,43 @@ const DraggableBar: React.FC<{
     );
 };
 
+// ── A4 skeleton — vertical proportions (1:√2 ≈ 210:297) ──────────
+const PageSkeleton: React.FC<{ label: string }> = ({ label }) => (
+    <div style={{
+        width: "min(45vw, 320px)",
+        aspectRatio: "210 / 297",         // A4 portrait
+        background: "#141414",
+        borderRadius: 4,
+        display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+        <span style={{ color: "#333", fontSize: 11, fontFamily: "monospace" }}>
+            {label}
+        </span>
+    </div>
+);
+
 // ── Main reader ───────────────────────────────────────────────────
 const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => {
     const virtualPages = buildVirtualPages(images.length);
 
-    const [vIndex, setVIndex] = useState(0);         // virtual index (includes ad slots)
-    const [loaded, setLoaded] = useState<boolean[]>(new Array(images.length).fill(false));
-    const [rtl, setRtl] = useState(false);
+    const [vIndex, setVIndex]   = useState(0);
+    const [loaded, setLoaded]   = useState<boolean[]>(new Array(images.length).fill(false));
+    const [rtl, setRtl]         = useState(false);
     const [twoPage, setTwoPage] = useState(false);
+    const [immersive, setImmersive] = useState(false);   // hide header/footer
 
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const currentVPage = virtualPages[vIndex];
-    const isAdPage = currentVPage?.type === "ad";
+    // ── Swipe tracking ───────────────────────────────────────────
+    const touchStartX = useRef<number | null>(null);
+    const touchStartY = useRef<number | null>(null);
 
-    // Real page index for display/counter (only counts real pages)
+    const currentVPage    = virtualPages[vIndex];
+    const isAdPage        = currentVPage?.type === "ad";
     const currentRealIndex = currentVPage?.type === "page" ? currentVPage.realIndex : -1;
 
-    // ── 2-page partner resolution ────────────────────────────────────
-    // In 2-page mode the RIGHT slot is vIndex+1, BUT only if it's a real page
-    // (not an ad). If vIndex+1 is an ad, this spread has no partner — don't
-    // show a half-empty layout, just render the single page centred.
     const nextVPage = twoPage && !isAdPage ? virtualPages[vIndex + 1] : undefined;
-    const hasPageB = twoPage && !isAdPage && nextVPage?.type === "page";
+    const hasPageB  = twoPage && !isAdPage && nextVPage?.type === "page";
     const pageBReal = hasPageB && nextVPage?.type === "page" ? nextVPage.realIndex : -1;
 
     const progress = images.length > 1
@@ -214,7 +226,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         : 100;
 
     const isFirst = vIndex === 0;
-    const isLast = vIndex >= virtualPages.length - 1;
+    const isLast  = vIndex >= virtualPages.length - 1;
 
     const goToV = (idx: number) => {
         const clamped = Math.max(0, Math.min(virtualPages.length - 1, idx));
@@ -222,47 +234,24 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         containerRef.current?.scrollTo({ top: 0 });
     };
 
-    // Jump to real page index — find corresponding virtual index
     const goToReal = (realIdx: number) => {
         const vi = virtualPages.findIndex(p => p.type === "page" && p.realIndex === realIdx);
         if (vi >= 0) goToV(vi);
     };
 
-    // ── Smart navigation: skip over ad slots, keep 2-page pairs aligned ──
-    // In 2-page mode we advance by 2 real pages but must account for ad slots
-    // inserted into the virtual list. We always land on a real page (never an ad).
     const goNext = () => {
-        if (isAdPage) {
-            // From an ad, always move forward by 1 to get to the next real page
-            goToV(vIndex + 1);
-            return;
-        }
-        if (!twoPage) {
-            goToV(vIndex + 1);
-            return;
-        }
-        // 2-page mode: consume this spread (1 or 2 virtual slots depending on
-        // whether vIndex+1 is a real page or an ad), then skip any ad that follows
+        if (isAdPage) { goToV(vIndex + 1); return; }
+        if (!twoPage) { goToV(vIndex + 1); return; }
         let next = vIndex + (hasPageB ? 2 : 1);
-        // If we land on an ad, skip past it so we start on a real page
         if (virtualPages[next]?.type === "ad") next += 1;
         goToV(next);
     };
 
     const goPrev = () => {
-        if (isAdPage) {
-            goToV(vIndex - 1);
-            return;
-        }
-        if (!twoPage) {
-            goToV(vIndex - 1);
-            return;
-        }
-        // Step back 1 virtual slot, then skip any ad before us
+        if (isAdPage) { goToV(vIndex - 1); return; }
+        if (!twoPage) { goToV(vIndex - 1); return; }
         let prev = vIndex - 1;
         if (virtualPages[prev]?.type === "ad") prev -= 1;
-        // Now align: if the page before this one is also a real page (i.e. this
-        // would be its pair), step back one more so the pair starts correctly
         if (prev > 0 && virtualPages[prev - 1]?.type === "page") prev -= 1;
         goToV(Math.max(0, prev));
     };
@@ -274,6 +263,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         setLoaded(prev => { const n = [...prev]; n[idx] = true; return n; });
     };
 
+    // ── Keyboard ─────────────────────────────────────────────────
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "ArrowRight") rtl ? goPrev() : goNext();
@@ -281,10 +271,30 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
             else if (e.key === "ArrowDown") goNext();
             else if (e.key === "ArrowUp") goPrev();
             else if (e.key === "Escape") onClose();
+            else if (e.key === "f" || e.key === "F") setImmersive(v => !v);
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [vIndex, rtl, step]);
+    }, [vIndex, rtl, twoPage]);
+
+    // ── Swipe handlers ───────────────────────────────────────────
+    const onTouchStart = (e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0].clientX;
+        touchStartY.current = e.touches[0].clientY;
+    };
+
+    const onTouchEnd = (e: React.TouchEvent) => {
+        if (touchStartX.current === null || touchStartY.current === null) return;
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        const dy = e.changedTouches[0].clientY - touchStartY.current;
+        touchStartX.current = null;
+        touchStartY.current = null;
+        // Only trigger on horizontal swipes (dx > dy*1.5 and >40px threshold)
+        if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        // Swipe left → go forward (Next in LTR), swipe right → go back
+        if (dx < 0) rtl ? goPrev() : goNext();
+        else         rtl ? goNext() : goPrev();
+    };
 
     // Preload next real pages
     const preloadRealIdx = virtualPages
@@ -294,27 +304,17 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
 
     const renderRealPage = (realIdx: number, side: "left" | "right") => {
         if (realIdx < 0 || realIdx >= images.length) return null;
-        // In 2-page mode with a real partner, pages butt up to the centre gutter.
-        // When there's no partner (lone page near an ad boundary), centre it.
         const isPaired = twoPage && hasPageB;
         return (
             <div style={{
-                flex: isPaired ? 1 : "unset",
+                flex: 1,
                 height: "100%",
                 display: "flex", alignItems: "center",
                 justifyContent: isPaired ? (side === "left" ? "flex-end" : "flex-start") : "center",
                 minWidth: 0,
             }}>
-                {!loaded[realIdx] && (
-                    <div style={{
-                        width: "80%", height: "60%", background: "#141414",
-                        borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                        <span style={{ color: "#333", fontSize: 11, fontFamily: "monospace" }}>
-                            Loading {realIdx + 1}...
-                        </span>
-                    </div>
-                )}
+                {/* A4 vertical skeleton — only shown while loading */}
+                {!loaded[realIdx] && <PageSkeleton label={`Loading ${realIdx + 1}...`} />}
                 <img
                     key={realIdx}
                     src={images[realIdx]}
@@ -343,11 +343,15 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
             fontFamily: "'Georgia', serif",
         }}>
 
-            {/* ── Top bar ── */}
+            {/* ── Top bar (hidden in immersive) ── */}
             <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "8px 12px", borderBottom: "1px solid #1e1e1e",
                 background: "#0f0f0f", flexShrink: 0, gap: 6, minHeight: 44,
+                // slide up when immersive
+                maxHeight: immersive ? 0 : 64,
+                overflow: "hidden",
+                transition: "max-height 0.25s ease",
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
                     <BookOpen size={14} color="#555" style={{ flexShrink: 0 }} />
@@ -360,7 +364,6 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                             {title}
                         </span>
                     )}
-                    {/* Page counter — only shows real page count, ads not counted */}
                     {isAdPage ? (
                         <span style={{ color: "#444", fontSize: 11, fontFamily: "monospace", flexShrink: 0 }}>
                             — / {String(images.length).padStart(2, "0")}
@@ -401,6 +404,14 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                     >
                         {rtl ? "←RL" : "LR→"}
                     </button>
+                    {/* Immersive / fullscreen toggle */}
+                    <button
+                        onClick={() => setImmersive(v => !v)}
+                        title={immersive ? "Exit immersive (F)" : "Immersive mode — hide UI (F)"}
+                        style={{ ...btnBase, padding: "3px 8px", fontSize: 10, borderColor: immersive ? "#e05c2a" : "#2a2a2a", color: immersive ? "#e05c2a" : "#666" }}
+                    >
+                        {immersive ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+                    </button>
                     <button
                         onClick={onClose}
                         style={{ ...btnBase, padding: "3px 8px", fontSize: 10 }}
@@ -415,6 +426,8 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
             {/* ── Page viewer ── */}
             <div
                 ref={containerRef}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
                 style={{
                     flex: 1, overflow: "hidden", position: "relative",
                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -424,9 +437,21 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                 {/* Click zones — disabled on ad pages */}
                 {!isAdPage && (
                     <>
-                        <div onClick={onClickLeft} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "28%", zIndex: 10, cursor: "default" }} />
+                        <div onClick={onClickLeft}  style={{ position: "absolute", left: 0,  top: 0, bottom: 0, width: "28%", zIndex: 10, cursor: "default" }} />
                         <div onClick={onClickRight} style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "28%", zIndex: 10, cursor: "default" }} />
                     </>
+                )}
+
+                {/* Immersive mode tap-centre to reveal UI */}
+                {immersive && (
+                    <div
+                        onClick={() => setImmersive(false)}
+                        title="Tap centre to show controls"
+                        style={{
+                            position: "absolute", left: "28%", right: "28%", top: 0, bottom: 0,
+                            zIndex: 11, cursor: "pointer",
+                        }}
+                    />
                 )}
 
                 {/* Pages container */}
@@ -437,14 +462,10 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                     maxHeight: "calc(100vh - 165px)",
                 }}>
                     {isAdPage ? (
-                        // Ad page — full viewer area
                         <AdCard variant="reader" />
                     ) : twoPage && hasPageB ? (
-                        // True 2-page spread
                         <>{renderRealPage(leftRealPage, "left")}{renderRealPage(rightRealPage, "right")}</>
                     ) : (
-                        // Single page — either 1-page mode, or 2-page mode but
-                        // next slot is an ad (lone page), render centred
                         renderRealPage(currentRealIndex, "left")
                     )}
                 </div>
@@ -455,99 +476,107 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                 ))}
             </div>
 
-            {/* ── Progress label ── */}
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 20px", background: "#0f0f0f", flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: "#3a3a3a", letterSpacing: "0.1em", fontFamily: "monospace" }}>
-                    {rtl ? "END" : "START"}
-                </span>
-                <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.06em", fontFamily: "monospace" }}>
-                    {isAdPage ? "· ad ·" : (
-                        <>
-                            {Math.round(progress)}% read
-                            {progress >= 80 && progress < 100 && <span style={{ color: "#e05c2a", marginLeft: 8 }}>· ending soon</span>}
-                            {progress === 100 && <span style={{ color: "#4caf50", marginLeft: 8 }}>· complete</span>}
-                        </>
-                    )}
-                </span>
-                <span style={{ fontSize: 10, color: "#3a3a3a", letterSpacing: "0.1em", fontFamily: "monospace" }}>
-                    {rtl ? "START" : "END"}
-                </span>
-            </div>
-
-            {/* ── Progress bar ── */}
-            <DraggableBar
-                progress={progress}
-                rtl={rtl}
-                totalReal={images.length}
-                currentRealIndex={Math.max(0, currentRealIndex)}
-                goToReal={goToReal}
-            />
-
-            {/* ── Bottom nav ── */}
+            {/* ── Footer: progress label + bar + nav (hidden in immersive) ── */}
             <div style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                gap: 12, padding: "12px 20px",
-                borderTop: "1px solid #1a1a1a", background: "#0f0f0f", flexShrink: 0,
+                maxHeight: immersive ? 0 : 200,
+                overflow: "hidden",
+                transition: "max-height 0.25s ease",
+                flexShrink: 0,
             }}>
-                {(() => {
-                    const isAction = rtl;
-                    const fn = rtl ? goNext : goPrev;
-                    const disabled = rtl ? isLast : isFirst;
-                    const label = rtl ? "Next" : "Prev";
-                    return (
-                        <button onClick={fn} disabled={disabled} style={{
-                            display: "flex", alignItems: "center", gap: 6, padding: "8px 20px",
-                            background: disabled ? "#111" : isAction ? "#e05c2a" : "#1c1c1c",
-                            border: "1px solid", borderColor: disabled ? "#1a1a1a" : isAction ? "#e05c2a" : "#2e2e2e",
-                            borderRadius: 6, color: disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa",
-                            cursor: disabled ? "not-allowed" : "pointer",
-                            fontSize: 13, letterSpacing: "0.04em", transition: "all 0.15s", fontWeight: isAction ? 500 : 400,
-                        }}
-                            onMouseEnter={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#c94f20" : "#252525"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; } }}
-                            onMouseLeave={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#e05c2a" : "#1c1c1c"; (e.currentTarget as HTMLButtonElement).style.color = disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa"; } }}
-                        >
-                            <ChevronLeft size={15} />{label}
-                        </button>
-                    );
-                })()}
-
-                {/* Page dots — skip ad slots */}
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    {virtualPages.slice(Math.max(0, vIndex - 3), Math.min(virtualPages.length, vIndex + 4))
-                        .map((vp, i) => {
-                            const vi = Math.max(0, vIndex - 3) + i;
-                            const isAd = vp.type === "ad";
-                            return (
-                                <button key={vi} onClick={() => goToV(vi)} style={{
-                                    width: vi === vIndex ? 24 : 8, height: 8, borderRadius: 4,
-                                    background: isAd ? "#2a2010" : vi === vIndex ? "#e05c2a" : vi < vIndex ? "#3a3a3a" : "#222",
-                                    border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s",
-                                }} />
-                            );
-                        })}
+                {/* Progress label */}
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 20px", background: "#0f0f0f" }}>
+                    <span style={{ fontSize: 10, color: "#3a3a3a", letterSpacing: "0.1em", fontFamily: "monospace" }}>
+                        {rtl ? "END" : "START"}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#555", letterSpacing: "0.06em", fontFamily: "monospace" }}>
+                        {isAdPage ? "· ad ·" : (
+                            <>
+                                {Math.round(progress)}% read
+                                {progress >= 80 && progress < 100 && <span style={{ color: "#e05c2a", marginLeft: 8 }}>· ending soon</span>}
+                                {progress === 100 && <span style={{ color: "#4caf50", marginLeft: 8 }}>· complete</span>}
+                            </>
+                        )}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#3a3a3a", letterSpacing: "0.1em", fontFamily: "monospace" }}>
+                        {rtl ? "START" : "END"}
+                    </span>
                 </div>
 
-                {(() => {
-                    const isAction = !rtl;
-                    const fn = rtl ? goPrev : goNext;
-                    const disabled = rtl ? isFirst : isLast;
-                    const label = rtl ? "Prev" : "Next";
-                    return (
-                        <button onClick={fn} disabled={disabled} style={{
-                            display: "flex", alignItems: "center", gap: 6, padding: "8px 20px",
-                            background: disabled ? "#111" : isAction ? "#e05c2a" : "#1c1c1c",
-                            border: "1px solid", borderColor: disabled ? "#1a1a1a" : isAction ? "#e05c2a" : "#2e2e2e",
-                            borderRadius: 6, color: disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa",
-                            cursor: disabled ? "not-allowed" : "pointer",
-                            fontSize: 13, letterSpacing: "0.04em", transition: "all 0.15s", fontWeight: isAction ? 500 : 400,
-                        }}
-                            onMouseEnter={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#c94f20" : "#252525"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; } }}
-                            onMouseLeave={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#e05c2a" : "#1c1c1c"; (e.currentTarget as HTMLButtonElement).style.color = disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa"; } }}
-                        >
-                            {label}<ChevronRight size={15} />
-                        </button>
-                    );
-                })()}
+                {/* Progress bar */}
+                <DraggableBar
+                    progress={progress}
+                    rtl={rtl}
+                    totalReal={images.length}
+                    currentRealIndex={Math.max(0, currentRealIndex)}
+                    goToReal={goToReal}
+                />
+
+                {/* Bottom nav */}
+                <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    gap: 12, padding: "12px 20px",
+                    borderTop: "1px solid #1a1a1a", background: "#0f0f0f",
+                }}>
+                    {(() => {
+                        const isAction = rtl;
+                        const fn = rtl ? goNext : goPrev;
+                        const disabled = rtl ? isLast : isFirst;
+                        const label = rtl ? "Next" : "Prev";
+                        return (
+                            <button onClick={fn} disabled={disabled} style={{
+                                display: "flex", alignItems: "center", gap: 6, padding: "8px 20px",
+                                background: disabled ? "#111" : isAction ? "#e05c2a" : "#1c1c1c",
+                                border: "1px solid", borderColor: disabled ? "#1a1a1a" : isAction ? "#e05c2a" : "#2e2e2e",
+                                borderRadius: 6, color: disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa",
+                                cursor: disabled ? "not-allowed" : "pointer",
+                                fontSize: 13, letterSpacing: "0.04em", transition: "all 0.15s", fontWeight: isAction ? 500 : 400,
+                            }}
+                                onMouseEnter={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#c94f20" : "#252525"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; } }}
+                                onMouseLeave={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#e05c2a" : "#1c1c1c"; (e.currentTarget as HTMLButtonElement).style.color = disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa"; } }}
+                            >
+                                <ChevronLeft size={15} />{label}
+                            </button>
+                        );
+                    })()}
+
+                    {/* Page dots */}
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {virtualPages.slice(Math.max(0, vIndex - 3), Math.min(virtualPages.length, vIndex + 4))
+                            .map((vp, i) => {
+                                const vi = Math.max(0, vIndex - 3) + i;
+                                const isAd = vp.type === "ad";
+                                return (
+                                    <button key={vi} onClick={() => goToV(vi)} style={{
+                                        width: vi === vIndex ? 24 : 8, height: 8, borderRadius: 4,
+                                        background: isAd ? "#2a2010" : vi === vIndex ? "#e05c2a" : vi < vIndex ? "#3a3a3a" : "#222",
+                                        border: "none", cursor: "pointer", padding: 0, transition: "all 0.2s",
+                                    }} />
+                                );
+                            })}
+                    </div>
+
+                    {(() => {
+                        const isAction = !rtl;
+                        const fn = rtl ? goPrev : goNext;
+                        const disabled = rtl ? isFirst : isLast;
+                        const label = rtl ? "Prev" : "Next";
+                        return (
+                            <button onClick={fn} disabled={disabled} style={{
+                                display: "flex", alignItems: "center", gap: 6, padding: "8px 20px",
+                                background: disabled ? "#111" : isAction ? "#e05c2a" : "#1c1c1c",
+                                border: "1px solid", borderColor: disabled ? "#1a1a1a" : isAction ? "#e05c2a" : "#2e2e2e",
+                                borderRadius: 6, color: disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa",
+                                cursor: disabled ? "not-allowed" : "pointer",
+                                fontSize: 13, letterSpacing: "0.04em", transition: "all 0.15s", fontWeight: isAction ? 500 : 400,
+                            }}
+                                onMouseEnter={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#c94f20" : "#252525"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; } }}
+                                onMouseLeave={e => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.background = isAction ? "#e05c2a" : "#1c1c1c"; (e.currentTarget as HTMLButtonElement).style.color = disabled ? "#2a2a2a" : isAction ? "#fff" : "#aaa"; } }}
+                            >
+                                {label}<ChevronRight size={15} />
+                            </button>
+                        );
+                    })()}
+                </div>
             </div>
         </div>
     );
