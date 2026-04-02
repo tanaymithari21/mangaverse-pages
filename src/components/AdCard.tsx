@@ -5,8 +5,8 @@
 import { useEffect, useRef, useState } from "react";
 
 // ── ADD YOUR ADSENSE CREDENTIALS HERE ────────────────────────────────────────
-const ADSENSE_CLIENT  = "";   // e.g. "ca-pub-XXXXXXXXXXXXXXXXX"
-const ADSENSE_SLOT    = "";   // e.g. "1234567890"
+const ADSENSE_CLIENT = "ca-pub-3844369896775247";   // e.g. "ca-pub-XXXXXXXXXXXXXXXXX"
+const ADSENSE_SLOT = "5129147754";   // e.g. "1234567890"
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Tuturu fallback image (Mayuri, Steins;Gate)
