@@ -201,9 +201,9 @@ const PageSkeleton: React.FC<{ label: string }> = ({ label }) => (
 const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => {
     const virtualPages = buildVirtualPages(images.length);
 
-    const [vIndex, setVIndex]   = useState(0);
-    const [loaded, setLoaded]   = useState<boolean[]>(new Array(images.length).fill(false));
-    const [rtl, setRtl]         = useState(false);
+    const [vIndex, setVIndex] = useState(0);
+    const [loaded, setLoaded] = useState<boolean[]>(new Array(images.length).fill(false));
+    const [rtl, setRtl] = useState(false);
     const [twoPage, setTwoPage] = useState(false);
     const [immersive, setImmersive] = useState(false);   // hide header/footer
 
@@ -213,12 +213,12 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     const touchStartX = useRef<number | null>(null);
     const touchStartY = useRef<number | null>(null);
 
-    const currentVPage    = virtualPages[vIndex];
-    const isAdPage        = currentVPage?.type === "ad";
+    const currentVPage = virtualPages[vIndex];
+    const isAdPage = currentVPage?.type === "ad";
     const currentRealIndex = currentVPage?.type === "page" ? currentVPage.realIndex : -1;
 
     const nextVPage = twoPage && !isAdPage ? virtualPages[vIndex + 1] : undefined;
-    const hasPageB  = twoPage && !isAdPage && nextVPage?.type === "page";
+    const hasPageB = twoPage && !isAdPage && nextVPage?.type === "page";
     const pageBReal = hasPageB && nextVPage?.type === "page" ? nextVPage.realIndex : -1;
 
     const progress = images.length > 1
@@ -226,7 +226,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         : 100;
 
     const isFirst = vIndex === 0;
-    const isLast  = vIndex >= virtualPages.length - 1;
+    const isLast = vIndex >= virtualPages.length - 1;
 
     const goToV = (idx: number) => {
         const clamped = Math.max(0, Math.min(virtualPages.length - 1, idx));
@@ -256,7 +256,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         goToV(Math.max(0, prev));
     };
 
-    const onClickLeft  = () => rtl ? goNext() : goPrev();
+    const onClickLeft = () => rtl ? goNext() : goPrev();
     const onClickRight = () => rtl ? goPrev() : goNext();
 
     const markLoaded = (idx: number) => {
@@ -293,7 +293,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
         // Swipe left → go forward (Next in LTR), swipe right → go back
         if (dx < 0) rtl ? goPrev() : goNext();
-        else         rtl ? goNext() : goPrev();
+        else rtl ? goNext() : goPrev();
     };
 
     // Preload next real pages
@@ -333,7 +333,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         );
     };
 
-    const leftRealPage  = rtl && twoPage ? pageBReal : currentRealIndex;
+    const leftRealPage = rtl && twoPage ? pageBReal : currentRealIndex;
     const rightRealPage = rtl && twoPage ? currentRealIndex : pageBReal;
 
     return (
@@ -437,7 +437,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                 {/* Click zones — disabled on ad pages */}
                 {!isAdPage && (
                     <>
-                        <div onClick={onClickLeft}  style={{ position: "absolute", left: 0,  top: 0, bottom: 0, width: "28%", zIndex: 10, cursor: "default" }} />
+                        <div onClick={onClickLeft} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "28%", zIndex: 10, cursor: "default" }} />
                         <div onClick={onClickRight} style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "28%", zIndex: 10, cursor: "default" }} />
                     </>
                 )}
