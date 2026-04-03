@@ -83,12 +83,16 @@ const Index = () => {
         {/* Hero */}
         <section className="text-center space-y-4 py-6">
           <h1 className="text-4xl md:text-6xl font-black tracking-tight">
-            Welcome to <span className="text-gradient-orange">MangaVerse</span>
+            Read Manga Online Free - <span className="text-gradient-orange">MangaVerse</span>
           </h1>
+
           <p className="text-muted-foreground max-w-md mx-auto">
-            Discover, read, and immerse yourself in thousands of manga stories.
+            MangaVerse lets you read manga online for free. Discover popular manga like Naruto, One Piece, Attack on Titan and explore thousands of chapters updated regularly.
           </p>
         </section>
+        <p className="sr-only">
+          Read manga online free with MangaVerse. Browse latest manga chapters, trending series, and explore action, romance, and adventure manga.
+        </p>
 
         {/* Search & Filter */}
         <section className="space-y-4">

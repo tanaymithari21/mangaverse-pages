@@ -16,21 +16,24 @@ import NotFound from "./pages/NotFound.tsx";
 const queryClient = new QueryClient();
 
 const App = () => (
+
+
   <QueryClientProvider client={queryClient}>
+
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/"                    element={<Index />} />
-          <Route path="/manga/:id"           element={<MangaDetail />} />
-          <Route path="/upload-manga"        element={<UploadManga />} />
-          <Route path="/upload-chapter"      element={<UploadChapter />} />
-          <Route path="/edit-manga/:id"      element={<EditManga />} />
-          <Route path="/admin/edit-manga"    element={<EditMangaSelect />} />
-          <Route path="/genres"              element={<GenreManager />} />
-          <Route path="/admin"               element={<AdminMenu />} />
-          <Route path="*"                    element={<NotFound />} />
+          <Route path="/" element={<Index />} />
+          <Route path="/manga/:id" element={<MangaDetail />} />
+          <Route path="/upload-manga" element={<UploadManga />} />
+          <Route path="/upload-chapter" element={<UploadChapter />} />
+          <Route path="/edit-manga/:id" element={<EditManga />} />
+          <Route path="/admin/edit-manga" element={<EditMangaSelect />} />
+          <Route path="/genres" element={<GenreManager />} />
+          <Route path="/admin" element={<AdminMenu />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
