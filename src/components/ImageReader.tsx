@@ -284,9 +284,13 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     const isAdPage = currentVPage?.type === "ad";
     const currentRealIndex = currentVPage?.type === "page" ? currentVPage.realIndex : -1;
 
-    const nextVPage = twoPage && !isAdPage ? virtualPages[vIndex + 1] : undefined;
-    const hasPageB = twoPage && !isAdPage && nextVPage?.type === "page";
-    const pageBReal = hasPageB && nextVPage?.type === "page" ? nextVPage.realIndex : -1;
+    // In 2-page mode, page B is always currentRealIndex + 1 (the odd partner)
+    // Show solo if: ad page, or last page is odd (no partner), or not 2-page mode
+    const hasPageB = twoPage && !isAdPage && (currentRealIndex + 1) < images.length;
+    const pageBReal = hasPageB ? currentRealIndex + 1 : -1;
+
+    // Also snap to 2-page boundary on mount if twoPage is toggled on
+    // (handled in goToV)
 
     const progress = images.length > 1
         ? (Math.max(0, currentRealIndex) / (images.length - 1)) * 100
@@ -295,8 +299,27 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     const isFirst = vIndex === 0;
     const isLast = vIndex >= virtualPages.length - 1;
 
-    const goToV = (idx: number) => {
-        const clamped = Math.max(0, Math.min(virtualPages.length - 1, idx));
+    // ── Snap to correct pair boundary in 2-page mode ─────────────
+    // In 2-page LTR: pairs are realIndex 0+1, 2+3, 4+5 ...
+    // In 2-page RTL: same physical pairs but displayed right→left (2+1, 4+3 ...)
+    // When switching TO 2-page, snap current vIndex to nearest even real-page boundary
+    const snapTo2Page = (currentV: number): number => {
+        const vp = virtualPages[currentV];
+        if (!vp || vp.type === "ad") return currentV; // stay on ad
+        // Find the real page's position among real-only pages
+        const realPos = vp.realIndex; // 0-based
+        // Snap to even: if realPos is odd (1,3,5...) go back one
+        const snappedReal = realPos % 2 === 0 ? realPos : realPos - 1;
+        const snappedVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === snappedReal);
+        return snappedVI >= 0 ? snappedVI : currentV;
+    };
+
+    const goToV = (idx: number, skipSnap = false) => {
+        let clamped = Math.max(0, Math.min(virtualPages.length - 1, idx));
+        // In 2-page mode snap to even pair boundary (unless told not to)
+        if (twoPage && !skipSnap && virtualPages[clamped]?.type === "page") {
+            clamped = snapTo2Page(clamped);
+        }
         setVIndex(clamped);
         containerRef.current?.scrollTo({ top: 0 });
     };
@@ -306,27 +329,47 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         if (vi >= 0) goToV(vi);
     };
 
+    // How many virtual slots to advance for "next" in 2-page mode
+    const twoPageStep = (): number => {
+        if (isAdPage) return 1; // from an ad page, always step 1
+        // Current is a real page. Advance by 2 real pages + any ad slots between them
+        const curReal = currentRealIndex;
+        const nextReal = curReal + 2; // next pair starts here
+        // Find virtual index of nextReal
+        const nextVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === nextReal);
+        if (nextVI < 0) {
+            // nextReal doesn't exist (odd last page) — go to last page
+            const lastVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === curReal + 1);
+            return lastVI >= 0 ? lastVI - vIndex : 1;
+        }
+        return nextVI - vIndex;
+    };
+
+    const twoPageStepBack = (): number => {
+        if (isAdPage) return 1;
+        const curReal = currentRealIndex;
+        const prevPairStart = curReal - 2; // go back one pair
+        if (prevPairStart < 0) return vIndex; // already at start
+        const prevVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === prevPairStart);
+        return prevVI >= 0 ? vIndex - prevVI : 1;
+    };
+
     const goNext = () => {
         playPageTurn();
         setAnimDir(rtl ? "left" : "right");
         animKey.current += 1;
-        if (isAdPage) { goToV(vIndex + 1); return; }
-        if (!twoPage) { goToV(vIndex + 1); return; }
-        let next = vIndex + (hasPageB ? 2 : 1);
-        if (virtualPages[next]?.type === "ad") next += 1;
-        goToV(next);
+        if (!twoPage) { goToV(vIndex + 1, true); return; }
+        const step = twoPageStep();
+        goToV(vIndex + step, true);
     };
 
     const goPrev = () => {
         playPageTurn();
         setAnimDir(rtl ? "right" : "left");
         animKey.current += 1;
-        if (isAdPage) { goToV(vIndex - 1); return; }
-        if (!twoPage) { goToV(vIndex - 1); return; }
-        let prev = vIndex - 1;
-        if (virtualPages[prev]?.type === "ad") prev -= 1;
-        if (prev > 0 && virtualPages[prev - 1]?.type === "page") prev -= 1;
-        goToV(Math.max(0, prev));
+        if (!twoPage) { goToV(vIndex - 1, true); return; }
+        const step = twoPageStepBack();
+        goToV(vIndex - step, true);
     };
 
     const onClickLeft = () => rtl ? goNext() : goPrev();
@@ -406,8 +449,12 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         );
     };
 
-    const leftRealPage = rtl && twoPage ? pageBReal : currentRealIndex;
-    const rightRealPage = rtl && twoPage ? currentRealIndex : pageBReal;
+    // LTR 2-page: left=currentRealIndex, right=currentRealIndex+1
+    // RTL 2-page: left=currentRealIndex+1 (later), right=currentRealIndex (earlier)
+    // Solo: when ad, or when last page has no pair (odd total)
+    const isSolo = isAdPage || !hasPageB;
+    const leftRealPage  = (!isSolo && rtl) ? pageBReal : currentRealIndex;
+    const rightRealPage = (!isSolo && rtl) ? currentRealIndex : pageBReal;
 
     return (
         <div style={{
@@ -460,7 +507,15 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
 
                 <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                     <button
-                        onClick={() => setTwoPage(v => !v)}
+                        onClick={() => {
+                            const next = !twoPage;
+                            setTwoPage(next);
+                            if (next && virtualPages[vIndex]?.type === "page") {
+                                // Snap to even pair boundary immediately
+                                const snapped = snapTo2Page(vIndex);
+                                if (snapped !== vIndex) setVIndex(snapped);
+                            }
+                        }}
                         title={twoPage ? "Single page" : "Two-page spread"}
                         style={{ ...btnBase, padding: "3px 8px", fontSize: 10, borderColor: twoPage ? "#e05c2a" : "#2a2a2a", color: twoPage ? "#e05c2a" : "#666" }}
                     >
@@ -566,10 +621,13 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                     }}
                 >
                     {isAdPage ? (
+                        // Ad page — full width, no pair
                         <AdCard variant="reader" />
                     ) : twoPage && hasPageB ? (
+                        // Proper pair: LTR = left(even)+right(odd), RTL = left(odd)+right(even)
                         <>{renderRealPage(leftRealPage, "left")}{renderRealPage(rightRealPage, "right")}</>
                     ) : (
+                        // Solo: single page mode OR last page with no partner OR odd total
                         renderRealPage(currentRealIndex, "left")
                     )}
                 </div>
