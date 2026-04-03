@@ -86,6 +86,9 @@ const Index = () => {
             Read Manga Online Free - <span className="text-gradient-orange">MangaVerse</span>
           </h1>
 
+          <p className="text-muted-foreground max-w-md mx-auto">
+            MangaVerse lets you read manga online for free. Discover popular manga like Naruto, One Piece, Attack on Titan and explore thousands of chapters updated regularly.
+          </p>
         </section>
         <p className="sr-only">
           Read manga online free with MangaVerse. Browse latest manga chapters, trending series, and explore action, romance, and adventure manga.
@@ -192,7 +195,6 @@ const Index = () => {
             About MangaVerse
           </a>
         </section>
-
       </main>
     </div>
   );
