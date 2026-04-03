@@ -12,6 +12,7 @@ import UploadChapter from "./pages/UploadChapter.tsx";
 import AdminMenu from "./pages/AdminMenu.tsx";
 import GenreManager from "./pages/GenreManager.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import About from "./pages/About.tsx";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/admin/edit-manga" element={<EditMangaSelect />} />
           <Route path="/genres" element={<GenreManager />} />
           <Route path="/admin" element={<AdminMenu />} />
+          <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
