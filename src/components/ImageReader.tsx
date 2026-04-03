@@ -1,4 +1,68 @@
 import { useState, useEffect, useRef } from "react";
+
+// ── Inject slide-animation CSS once ──────────────────────────────
+const SLIDE_CSS = `
+@keyframes slideInLeft  { from { transform: translateX(-6%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideInRight { from { transform: translateX( 6%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+`;
+if (typeof document !== "undefined" && !document.getElementById("ir-slide-css")) {
+    const s = document.createElement("style");
+    s.id = "ir-slide-css"; s.textContent = SLIDE_CSS;
+    document.head?.appendChild(s);
+}
+
+// ── Page-turn sound (Web Audio — no file needed) ─────────────────
+const playPageTurn = () => {
+    try {
+        const AC = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AC) return;
+        const ctx = new AC(); const t = ctx.currentTime; const dur = 0.38;
+        // White noise → bandpass sweep → gain envelope
+        const len = Math.floor(ctx.sampleRate * dur);
+        const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        const src = ctx.createBufferSource(); src.buffer = buf;
+        const bpf = ctx.createBiquadFilter(); bpf.type = "bandpass"; bpf.Q.value = 1.2;
+        bpf.frequency.setValueAtTime(600, t);
+        bpf.frequency.linearRampToValueAtTime(2800, t + 0.12);
+        bpf.frequency.linearRampToValueAtTime(900,  t + dur);
+        const shelf = ctx.createBiquadFilter(); shelf.type = "highshelf";
+        shelf.frequency.value = 2800; shelf.gain.value = 6;
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.55, t + 0.025);
+        gain.gain.linearRampToValueAtTime(0.30, t + 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        src.connect(bpf); bpf.connect(shelf); shelf.connect(gain); gain.connect(ctx.destination);
+        // Low thud at start
+        const tl = Math.floor(ctx.sampleRate * 0.055);
+        const tb = ctx.createBuffer(1, tl, ctx.sampleRate);
+        const td = tb.getChannelData(0);
+        for (let i = 0; i < tl; i++) td[i] = Math.random() * 2 - 1;
+        const ts = ctx.createBufferSource(); ts.buffer = tb;
+        const lpf = ctx.createBiquadFilter(); lpf.type = "lowpass"; lpf.frequency.value = 240;
+        const tg = ctx.createGain();
+        tg.gain.setValueAtTime(0, t); tg.gain.linearRampToValueAtTime(0.38, t + 0.007);
+        tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+        ts.connect(lpf); lpf.connect(tg); tg.connect(ctx.destination);
+        // Crisp tick at end (page lands)
+        const el = Math.floor(ctx.sampleRate * 0.035);
+        const eb = ctx.createBuffer(1, el, ctx.sampleRate);
+        const ed = eb.getChannelData(0);
+        for (let i = 0; i < el; i++) ed[i] = Math.random() * 2 - 1;
+        const es = ctx.createBufferSource(); es.buffer = eb;
+        const hpf = ctx.createBiquadFilter(); hpf.type = "highpass"; hpf.frequency.value = 4500;
+        const eg = ctx.createGain(); const et = t + dur - 0.04;
+        eg.gain.setValueAtTime(0, et); eg.gain.linearRampToValueAtTime(0.28, et + 0.005);
+        eg.gain.exponentialRampToValueAtTime(0.0001, et + 0.035);
+        es.connect(hpf); hpf.connect(eg); eg.connect(ctx.destination);
+        src.start(t); src.stop(t + dur + 0.01);
+        ts.start(t); ts.stop(t + 0.07);
+        es.start(et); es.stop(et + 0.04);
+        src.onended = () => ctx.close();
+    } catch { /* silent */ }
+};
 import { X, ChevronLeft, ChevronRight, BookOpen, BookMarked, Maximize2, Minimize2 } from "lucide-react";
 import AdCard from "@/components/AdCard";
 
@@ -206,6 +270,9 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     const [rtl, setRtl] = useState(false);
     const [twoPage, setTwoPage] = useState(false);
     const [immersive, setImmersive] = useState(false);   // hide header/footer
+    // slide direction for animation: "left" | "right" | null
+    const [animDir, setAnimDir] = useState<"left" | "right" | null>(null);
+    const animKey = useRef(0); // increments to force re-mount of animated wrapper
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -240,6 +307,9 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     };
 
     const goNext = () => {
+        playPageTurn();
+        setAnimDir(rtl ? "left" : "right");
+        animKey.current += 1;
         if (isAdPage) { goToV(vIndex + 1); return; }
         if (!twoPage) { goToV(vIndex + 1); return; }
         let next = vIndex + (hasPageB ? 2 : 1);
@@ -248,6 +318,9 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     };
 
     const goPrev = () => {
+        playPageTurn();
+        setAnimDir(rtl ? "right" : "left");
+        animKey.current += 1;
         if (isAdPage) { goToV(vIndex - 1); return; }
         if (!twoPage) { goToV(vIndex - 1); return; }
         let prev = vIndex - 1;
@@ -343,15 +416,11 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
             fontFamily: "'Georgia', serif",
         }}>
 
-            {/* ── Top bar (hidden in immersive) ── */}
-            <div style={{
+            {/* ── Top bar — removed from DOM entirely in immersive ── */}
+            {!immersive && <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "8px 12px", borderBottom: "1px solid #1e1e1e",
-                background: "#0f0f0f", flexShrink: 0, gap: 6, minHeight: 44,
-                // slide up when immersive
-                maxHeight: immersive ? 0 : 64,
-                overflow: "hidden",
-                transition: "max-height 0.25s ease",
+                background: "#0f0f0f", flexShrink: 0, gap: 6, height: 44,
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1, overflow: "hidden" }}>
                     <BookOpen size={14} color="#555" style={{ flexShrink: 0 }} />
@@ -421,7 +490,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                         <X size={12} /><span>Close</span>
                     </button>
                 </div>
-            </div>
+            </div>}
 
             {/* ── Page viewer ── */}
             <div
@@ -442,25 +511,60 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                     </>
                 )}
 
-                {/* Immersive mode tap-centre to reveal UI */}
+                {/* Immersive mode tap-centre to reveal UI + floating exit button */}
                 {immersive && (
-                    <div
-                        onClick={() => setImmersive(false)}
-                        title="Tap centre to show controls"
-                        style={{
-                            position: "absolute", left: "28%", right: "28%", top: 0, bottom: 0,
-                            zIndex: 11, cursor: "pointer",
-                        }}
-                    />
+                    <>
+                        <div
+                            onClick={() => setImmersive(false)}
+                            title="Tap centre to show controls"
+                            style={{
+                                position: "absolute", left: "28%", right: "28%", top: 0, bottom: 0,
+                                zIndex: 11, cursor: "pointer",
+                            }}
+                        />
+                        <button
+                            onClick={() => setImmersive(false)}
+                            title="Exit fullscreen (F)"
+                            style={{
+                                position: "absolute", bottom: 18, right: 18, zIndex: 20,
+                                background: "rgba(15,15,15,0.82)", border: "1px solid #333",
+                                borderRadius: 10, color: "#777", cursor: "pointer",
+                                padding: "8px 14px", display: "flex", alignItems: "center", gap: 6,
+                                fontSize: 11, letterSpacing: "0.04em",
+                                backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                                transition: "all 0.18s",
+                            }}
+                            onMouseEnter={e => {
+                                const b = e.currentTarget as HTMLButtonElement;
+                                b.style.background = "rgba(30,30,30,0.95)";
+                                b.style.color = "#fff";
+                                b.style.borderColor = "#555";
+                            }}
+                            onMouseLeave={e => {
+                                const b = e.currentTarget as HTMLButtonElement;
+                                b.style.background = "rgba(15,15,15,0.82)";
+                                b.style.color = "#777";
+                                b.style.borderColor = "#333";
+                            }}
+                        >
+                            <Minimize2 size={13} /><span>Exit fullscreen</span>
+                        </button>
+                    </>
                 )}
 
-                {/* Pages container */}
-                <div style={{
-                    display: "flex", flexDirection: "row", gap: 0,
-                    alignItems: "center", justifyContent: "center",
-                    width: "100%", height: "100%",
-                    maxHeight: "calc(100vh - 165px)",
-                }}>
+                {/* Pages container — animated slide wrapper */}
+                <div
+                    key={animKey.current}
+                    style={{
+                        display: "flex", flexDirection: "row", gap: 0,
+                        alignItems: "center", justifyContent: "center",
+                        width: "100%", height: "100%",
+                        maxHeight: "calc(100vh - 165px)",
+                        animation: animDir
+                            ? `${animDir === "left" ? "slideInLeft" : "slideInRight"} 0.22s cubic-bezier(0.25,0.46,0.45,0.94) both`
+                            : undefined,
+                    }}
+                >
                     {isAdPage ? (
                         <AdCard variant="reader" />
                     ) : twoPage && hasPageB ? (
@@ -477,12 +581,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
             </div>
 
             {/* ── Footer: progress label + bar + nav (hidden in immersive) ── */}
-            <div style={{
-                maxHeight: immersive ? 0 : 200,
-                overflow: "hidden",
-                transition: "max-height 0.25s ease",
-                flexShrink: 0,
-            }}>
+            {!immersive && <div style={{ flexShrink: 0 }}>
                 {/* Progress label */}
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 20px", background: "#0f0f0f" }}>
                     <span style={{ fontSize: 10, color: "#3a3a3a", letterSpacing: "0.1em", fontFamily: "monospace" }}>
@@ -577,7 +676,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                         );
                     })()}
                 </div>
-            </div>
+            </div>}
         </div>
     );
 };
