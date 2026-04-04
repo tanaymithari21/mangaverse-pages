@@ -15,3 +15,6 @@ Allow: /
 
 
 Sitemap: https://mangaverse.dpdns.org/sitemap.xml
+Disallow: /admin
+Disallow: /edit
+Disallow: /upload
