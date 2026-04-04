@@ -11,55 +11,29 @@ if (typeof document !== "undefined" && !document.getElementById("ir-slide-css"))
     document.head?.appendChild(s);
 }
 
-// ── Page-turn sound (Web Audio — no file needed) ─────────────────
+// ── Page-turn sound — soft subtle tick ───────────────────────────
 const playPageTurn = () => {
     try {
         const AC = window.AudioContext || (window as any).webkitAudioContext;
         if (!AC) return;
-        const ctx = new AC(); const t = ctx.currentTime; const dur = 0.38;
-        // White noise → bandpass sweep → gain envelope
+        const ctx = new AC(); const t = ctx.currentTime; const dur = 0.18;
+        // Very short noise burst — filtered to a soft paper-like swish
         const len = Math.floor(ctx.sampleRate * dur);
         const buf = ctx.createBuffer(1, len, ctx.sampleRate);
         const d = buf.getChannelData(0);
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         const src = ctx.createBufferSource(); src.buffer = buf;
-        const bpf = ctx.createBiquadFilter(); bpf.type = "bandpass"; bpf.Q.value = 1.2;
-        bpf.frequency.setValueAtTime(600, t);
-        bpf.frequency.linearRampToValueAtTime(2800, t + 0.12);
-        bpf.frequency.linearRampToValueAtTime(900,  t + dur);
-        const shelf = ctx.createBiquadFilter(); shelf.type = "highshelf";
-        shelf.frequency.value = 2800; shelf.gain.value = 6;
+        const bpf = ctx.createBiquadFilter(); bpf.type = "bandpass"; bpf.Q.value = 0.8;
+        bpf.frequency.setValueAtTime(800, t);
+        bpf.frequency.linearRampToValueAtTime(2200, t + 0.08);
+        bpf.frequency.linearRampToValueAtTime(1000, t + dur);
         const gain = ctx.createGain();
+        // Very low volume — just a whisper
         gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(0.55, t + 0.025);
-        gain.gain.linearRampToValueAtTime(0.30, t + 0.14);
+        gain.gain.linearRampToValueAtTime(0.07, t + 0.012);
         gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        src.connect(bpf); bpf.connect(shelf); shelf.connect(gain); gain.connect(ctx.destination);
-        // Low thud at start
-        const tl = Math.floor(ctx.sampleRate * 0.055);
-        const tb = ctx.createBuffer(1, tl, ctx.sampleRate);
-        const td = tb.getChannelData(0);
-        for (let i = 0; i < tl; i++) td[i] = Math.random() * 2 - 1;
-        const ts = ctx.createBufferSource(); ts.buffer = tb;
-        const lpf = ctx.createBiquadFilter(); lpf.type = "lowpass"; lpf.frequency.value = 240;
-        const tg = ctx.createGain();
-        tg.gain.setValueAtTime(0, t); tg.gain.linearRampToValueAtTime(0.38, t + 0.007);
-        tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-        ts.connect(lpf); lpf.connect(tg); tg.connect(ctx.destination);
-        // Crisp tick at end (page lands)
-        const el = Math.floor(ctx.sampleRate * 0.035);
-        const eb = ctx.createBuffer(1, el, ctx.sampleRate);
-        const ed = eb.getChannelData(0);
-        for (let i = 0; i < el; i++) ed[i] = Math.random() * 2 - 1;
-        const es = ctx.createBufferSource(); es.buffer = eb;
-        const hpf = ctx.createBiquadFilter(); hpf.type = "highpass"; hpf.frequency.value = 4500;
-        const eg = ctx.createGain(); const et = t + dur - 0.04;
-        eg.gain.setValueAtTime(0, et); eg.gain.linearRampToValueAtTime(0.28, et + 0.005);
-        eg.gain.exponentialRampToValueAtTime(0.0001, et + 0.035);
-        es.connect(hpf); hpf.connect(eg); eg.connect(ctx.destination);
+        src.connect(bpf); bpf.connect(gain); gain.connect(ctx.destination);
         src.start(t); src.stop(t + dur + 0.01);
-        ts.start(t); ts.stop(t + 0.07);
-        es.start(et); es.stop(et + 0.04);
         src.onended = () => ctx.close();
     } catch { /* silent */ }
 };
@@ -284,13 +258,9 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     const isAdPage = currentVPage?.type === "ad";
     const currentRealIndex = currentVPage?.type === "page" ? currentVPage.realIndex : -1;
 
-    // In 2-page mode, page B is always currentRealIndex + 1 (the odd partner)
-    // Show solo if: ad page, or last page is odd (no partner), or not 2-page mode
-    const hasPageB = twoPage && !isAdPage && (currentRealIndex + 1) < images.length;
-    const pageBReal = hasPageB ? currentRealIndex + 1 : -1;
-
-    // Also snap to 2-page boundary on mount if twoPage is toggled on
-    // (handled in goToV)
+    const nextVPage = twoPage && !isAdPage ? virtualPages[vIndex + 1] : undefined;
+    const hasPageB = twoPage && !isAdPage && nextVPage?.type === "page";
+    const pageBReal = hasPageB && nextVPage?.type === "page" ? nextVPage.realIndex : -1;
 
     const progress = images.length > 1
         ? (Math.max(0, currentRealIndex) / (images.length - 1)) * 100
@@ -299,27 +269,8 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
     const isFirst = vIndex === 0;
     const isLast = vIndex >= virtualPages.length - 1;
 
-    // ── Snap to correct pair boundary in 2-page mode ─────────────
-    // In 2-page LTR: pairs are realIndex 0+1, 2+3, 4+5 ...
-    // In 2-page RTL: same physical pairs but displayed right→left (2+1, 4+3 ...)
-    // When switching TO 2-page, snap current vIndex to nearest even real-page boundary
-    const snapTo2Page = (currentV: number): number => {
-        const vp = virtualPages[currentV];
-        if (!vp || vp.type === "ad") return currentV; // stay on ad
-        // Find the real page's position among real-only pages
-        const realPos = vp.realIndex; // 0-based
-        // Snap to even: if realPos is odd (1,3,5...) go back one
-        const snappedReal = realPos % 2 === 0 ? realPos : realPos - 1;
-        const snappedVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === snappedReal);
-        return snappedVI >= 0 ? snappedVI : currentV;
-    };
-
-    const goToV = (idx: number, skipSnap = false) => {
-        let clamped = Math.max(0, Math.min(virtualPages.length - 1, idx));
-        // In 2-page mode snap to even pair boundary (unless told not to)
-        if (twoPage && !skipSnap && virtualPages[clamped]?.type === "page") {
-            clamped = snapTo2Page(clamped);
-        }
+    const goToV = (idx: number) => {
+        const clamped = Math.max(0, Math.min(virtualPages.length - 1, idx));
         setVIndex(clamped);
         containerRef.current?.scrollTo({ top: 0 });
     };
@@ -329,47 +280,41 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         if (vi >= 0) goToV(vi);
     };
 
-    // How many virtual slots to advance for "next" in 2-page mode
-    const twoPageStep = (): number => {
-        if (isAdPage) return 1; // from an ad page, always step 1
-        // Current is a real page. Advance by 2 real pages + any ad slots between them
-        const curReal = currentRealIndex;
-        const nextReal = curReal + 2; // next pair starts here
-        // Find virtual index of nextReal
-        const nextVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === nextReal);
-        if (nextVI < 0) {
-            // nextReal doesn't exist (odd last page) — go to last page
-            const lastVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === curReal + 1);
-            return lastVI >= 0 ? lastVI - vIndex : 1;
-        }
-        return nextVI - vIndex;
-    };
-
-    const twoPageStepBack = (): number => {
-        if (isAdPage) return 1;
-        const curReal = currentRealIndex;
-        const prevPairStart = curReal - 2; // go back one pair
-        if (prevPairStart < 0) return vIndex; // already at start
-        const prevVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === prevPairStart);
-        return prevVI >= 0 ? vIndex - prevVI : 1;
-    };
-
     const goNext = () => {
         playPageTurn();
         setAnimDir(rtl ? "left" : "right");
         animKey.current += 1;
-        if (!twoPage) { goToV(vIndex + 1, true); return; }
-        const step = twoPageStep();
-        goToV(vIndex + step, true);
+        if (isAdPage) { goToV(vIndex + 1); return; }
+        if (!twoPage) { goToV(vIndex + 1); return; }
+        // In 2-page mode: advance by 1 or 2 real pages (the pair)
+        // BUT stop at an ad slot if one appears before the next pair
+        const step = hasPageB ? 2 : 1;
+        const candidate = vIndex + step;
+        // If an ad sits right after this pair, land on it first
+        if (virtualPages[candidate]?.type === "ad") {
+            goToV(candidate); // show the ad
+        } else {
+            goToV(candidate); // show next pair
+        }
     };
 
     const goPrev = () => {
         playPageTurn();
         setAnimDir(rtl ? "right" : "left");
         animKey.current += 1;
-        if (!twoPage) { goToV(vIndex - 1, true); return; }
-        const step = twoPageStepBack();
-        goToV(vIndex - step, true);
+        if (isAdPage) { goToV(vIndex - 1); return; }
+        if (!twoPage) { goToV(vIndex - 1); return; }
+        // Walk back: check if slot before us is an ad — land on it
+        const slotBefore = virtualPages[vIndex - 1];
+        if (slotBefore?.type === "ad") {
+            goToV(vIndex - 1); return; // show the ad
+        }
+        // Otherwise go back a full pair (2 real pages)
+        // But only go back 1 if current pair start is at realIndex 0 or 1
+        const prevPairStart = currentRealIndex - 2;
+        if (prevPairStart < 0) { goToV(0); return; }
+        const prevVI = virtualPages.findIndex(p => p.type === "page" && p.realIndex === prevPairStart);
+        goToV(prevVI >= 0 ? prevVI : Math.max(0, vIndex - 2));
     };
 
     const onClickLeft = () => rtl ? goNext() : goPrev();
@@ -449,12 +394,8 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
         );
     };
 
-    // LTR 2-page: left=currentRealIndex, right=currentRealIndex+1
-    // RTL 2-page: left=currentRealIndex+1 (later), right=currentRealIndex (earlier)
-    // Solo: when ad, or when last page has no pair (odd total)
-    const isSolo = isAdPage || !hasPageB;
-    const leftRealPage  = (!isSolo && rtl) ? pageBReal : currentRealIndex;
-    const rightRealPage = (!isSolo && rtl) ? currentRealIndex : pageBReal;
+    const leftRealPage = rtl && twoPage ? pageBReal : currentRealIndex;
+    const rightRealPage = rtl && twoPage ? currentRealIndex : pageBReal;
 
     return (
         <div style={{
@@ -507,15 +448,7 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
 
                 <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                     <button
-                        onClick={() => {
-                            const next = !twoPage;
-                            setTwoPage(next);
-                            if (next && virtualPages[vIndex]?.type === "page") {
-                                // Snap to even pair boundary immediately
-                                const snapped = snapTo2Page(vIndex);
-                                if (snapped !== vIndex) setVIndex(snapped);
-                            }
-                        }}
+                        onClick={() => setTwoPage(v => !v)}
                         title={twoPage ? "Single page" : "Two-page spread"}
                         style={{ ...btnBase, padding: "3px 8px", fontSize: 10, borderColor: twoPage ? "#e05c2a" : "#2a2a2a", color: twoPage ? "#e05c2a" : "#666" }}
                     >
@@ -621,13 +554,10 @@ const ImageReader: React.FC<ImageReaderProps> = ({ images, title, onClose }) => 
                     }}
                 >
                     {isAdPage ? (
-                        // Ad page — full width, no pair
                         <AdCard variant="reader" />
                     ) : twoPage && hasPageB ? (
-                        // Proper pair: LTR = left(even)+right(odd), RTL = left(odd)+right(even)
                         <>{renderRealPage(leftRealPage, "left")}{renderRealPage(rightRealPage, "right")}</>
                     ) : (
-                        // Solo: single page mode OR last page with no partner OR odd total
                         renderRealPage(currentRealIndex, "left")
                     )}
                 </div>
