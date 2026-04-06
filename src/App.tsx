@@ -35,7 +35,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             {/* Existing routes */}
-            <Route path="/" element={<Index />} />
+            <Route path="/home" element={<Index />} />
             <Route path="/manga/:id" element={<MangaDetail />} />
             <Route path="/upload-manga" element={<UploadManga />} />
             <Route path="/upload-chapter" element={<UploadChapter />} />
@@ -46,7 +46,7 @@ const App = () => (
 
             {/* ── NEW SEO routes ── */}
             <Route path="/about" element={<About />} />
-            <Route path="/home" element={<SEOHome />} />
+            <Route path="/" element={<SEOHome />} />
             <Route path="/genres-guide" element={<GenresGuide />} />
             <Route path="/how-to-read" element={<HowToRead />} />
 
