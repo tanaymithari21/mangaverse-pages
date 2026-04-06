@@ -1,20 +1,13 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
 
-
-Sitemap: https://mangaverse.dpdns.org/sitemap.xml
+# Block admin pages from indexing
 Disallow: /admin
-Disallow: /edit
-Disallow: /upload
+Disallow: /admin/
+Disallow: /upload-manga
+Disallow: /upload-chapter
+Disallow: /edit-manga/
+Disallow: /genres
+
+# Sitemap location
+Sitemap: https://mangaverse-pages.vercel.app/sitemap.xml

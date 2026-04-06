@@ -1,220 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
-  <!-- Homepage -->
+  <!-- ── Core pages ── -->
   <url>
-    <loc>https://mangaverse.dpdns.org/</loc>
+    <loc>https://mangaverse-pages.vercel.app/</loc>
+    <lastmod>2025-04-06</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
-  <!-- About Page -->
+  <!-- ── SEO static pages ── -->
   <url>
-    <loc>https://mangaverse.dpdns.org/about</loc>
-    <priority>0.7</priority>
-  </url>
-
-  <!-- Example Manga Pages (IMPORTANT: Replace with real IDs) -->
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/1</loc>
+    <loc>https://mangaverse-pages.vercel.app/home</loc>
+    <lastmod>2025-04-06</lastmod>
+    <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://mangaverse.dpdns.org/manga/2</loc>
-    <priority>0.9</priority>
+    <loc>https://mangaverse-pages.vercel.app/genres-guide</loc>
+    <lastmod>2025-04-06</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
 
   <url>
-    <loc>https://mangaverse.dpdns.org/manga/3</loc>
-    <priority>0.9</priority>
+    <loc>https://mangaverse-pages.vercel.app/how-to-read</loc>
+    <lastmod>2025-04-06</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
+
   <url>
-    <loc>https://mangaverse.dpdns.org/manga/4</loc>
-    <priority>0.9</priority>
+    <loc>https://mangaverse-pages.vercel.app/about</loc>
+    <lastmod>2025-04-06</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
   </url>
+
+  <!-- ── NOTE: For dynamic manga pages, generate a sitemap dynamically ──
+       Add an API endpoint like /api/sitemap that returns all manga IDs,
+       then fetch and append them here, or use a sitemap index file.
+
+       Example dynamic entry format:
   <url>
-    <loc>https://mangaverse.dpdns.org/manga/5</loc>
-    <priority>0.9</priority>
+    <loc>https://mangaverse-pages.vercel.app/manga/1</loc>
+    <lastmod>2025-04-06</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/6</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/7</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/8</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/9</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/10</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/11</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/12</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/13</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/14</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/15</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/16</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/17</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/18</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/19</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/20</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/21</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/22</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/23</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/24</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/25</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/26</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/27</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/28</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/29</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/30</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/31</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/32</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/33</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/34</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/35</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/36</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/37</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/38</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/39</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/40</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/41</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/42</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/43</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/44</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/45</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/46</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/47</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/48</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/49</loc>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://mangaverse.dpdns.org/manga/50</loc>
-    <priority>0.9</priority>
-  </url>
+  -->
 
 </urlset>
