@@ -6,7 +6,7 @@
 
   <!-- ── Core pages ── -->
   <url>
-    <loc>https://mangaverse-pages.vercel.app/</loc>
+    <loc>https://mangaverse.dpdns.org/</loc>
     <lastmod>2025-04-06</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -14,44 +14,30 @@
 
   <!-- ── SEO static pages ── -->
   <url>
-    <loc>https://mangaverse-pages.vercel.app/home</loc>
+    <loc>https://mangaverse.dpdns.org/home</loc>
     <lastmod>2025-04-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://mangaverse-pages.vercel.app/genres-guide</loc>
+    <loc>https://mangaverse.dpdns.org/genres-guide</loc>
     <lastmod>2025-04-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
 
   <url>
-    <loc>https://mangaverse-pages.vercel.app/how-to-read</loc>
+    <loc>https://mangaverse.dpdns.org/how-to-read</loc>
     <lastmod>2025-04-06</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
 
   <url>
-    <loc>https://mangaverse-pages.vercel.app/about</loc>
+    <loc>https://mangaverse.dpdns.org/about</loc>
     <lastmod>2025-04-06</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
-
-  <!-- ── NOTE: For dynamic manga pages, generate a sitemap dynamically ──
-       Add an API endpoint like /api/sitemap that returns all manga IDs,
-       then fetch and append them here, or use a sitemap index file.
-
-       Example dynamic entry format:
-  <url>
-    <loc>https://mangaverse-pages.vercel.app/manga/1</loc>
-    <lastmod>2025-04-06</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  -->
-
 </urlset>
