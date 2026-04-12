@@ -10,4 +10,5 @@ Disallow: /edit-manga/
 Disallow: /genres
 
 # Sitemap location
+
 Sitemap: https://mangaverse-pages.vercel.app/sitemap.xml
