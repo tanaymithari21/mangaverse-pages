@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Block admin pages from indexing
+Disallow: /admin
+Disallow: /admin/
+Disallow: /upload-manga
+Disallow: /upload-chapter
+Disallow: /edit-manga/
+Disallow: /genres
+
+# Sitemap location
+Sitemap: https://mangaverse-pages.vercel.app/sitemap.xml
